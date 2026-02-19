@@ -11,6 +11,9 @@ COPY pyproject.toml uv.lock ./
 # Install production dependencies only (no dev)
 RUN uv sync --no-dev --frozen
 
+# Put the virtual environment on PATH so uvicorn is directly accessible
+ENV PATH="/app/.venv/bin:$PATH"
+
 # Copy application code and data
 COPY app/ app/
 COPY data/ data/
@@ -21,4 +24,4 @@ ENV PORT=8000
 
 EXPOSE ${PORT}
 
-CMD uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
