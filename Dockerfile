@@ -1,18 +1,10 @@
-FROM python:3.13-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install uv for fast dependency resolution
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Copy dependency files first for layer caching
-COPY pyproject.toml uv.lock ./
-
-# Install production dependencies only (no dev)
-RUN uv sync --no-dev --frozen
-
-# Put the virtual environment on PATH so uvicorn is directly accessible
-ENV PATH="/app/.venv/bin:$PATH"
+# Install production dependencies directly into system Python (no venv)
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir fastapi "uvicorn[standard]" pydantic
 
 # Copy application code and data
 COPY app/ app/
