@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Solidea Sizing Data",
+  "description": "Array of size entries with measurement ranges for a single product type",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["size", "measurements"],
+    "additionalProperties": false,
+    "properties": {
+      "size": {
+        "type": "string",
+        "description": "Size label (e.g., S, M, L, XL)"
+      },
+      "measurements": {
+        "type": "object",
+        "description": "Measurement fields with min/max ranges in cm or kg",
+        "minProperties": 1,
+        "additionalProperties": {
+          "type": "object",
+          "required": ["min", "max"],
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "type": "number",
+              "description": "Minimum value (inclusive)"
+            },
+            "max": {
+              "type": "number",
+              "description": "Maximum value (inclusive)"
+            }
+          }
+        }
+      }
+    }
+  }
+}

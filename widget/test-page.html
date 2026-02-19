@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solidea Active Massage Leggings - Test Page</title>
+  <style>
+    /* Minimal Shopify-like product page layout for testing */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; }
+    .page-wrapper { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .product-layout { display: flex; gap: 40px; flex-wrap: wrap; }
+    .product-image { flex: 1; min-width: 300px; }
+    .product-image img { width: 100%; height: 400px; background: #f0f0f0; object-fit: cover; }
+    .product-image .placeholder {
+      width: 100%; height: 400px; background: #eee;
+      display: flex; align-items: center; justify-content: center;
+      color: #aaa; font-size: 18px;
+    }
+    .product-info { flex: 1; min-width: 300px; }
+    h1.product__title { font-size: 28px; margin-bottom: 10px; }
+    .product-price { font-size: 22px; color: #1a1a2e; margin-bottom: 20px; }
+    .product-description { line-height: 1.6; margin-bottom: 20px; color: #555; }
+    .product-form__buttons {
+      display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;
+    }
+    .add-to-cart {
+      background: #1a1a2e; color: #fff; border: none;
+      padding: 14px 28px; font-size: 16px; cursor: pointer;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .test-controls {
+      background: #f8f8f8; padding: 20px; margin-top: 40px; border: 1px solid #ddd;
+    }
+    .test-controls h3 { margin-bottom: 10px; }
+    .test-controls select, .test-controls input {
+      padding: 8px 12px; margin-right: 10px; font-size: 14px;
+    }
+    .test-controls button {
+      padding: 8px 16px; cursor: pointer; font-size: 14px;
+    }
+    .test-controls p { margin-top: 10px; font-size: 13px; color: #777; }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <div class="product-layout">
+      <div class="product-image">
+        <div class="placeholder">[ Product Image ]</div>
+      </div>
+      <div class="product-info">
+        <h1 class="product__title">Active Massage Leggings</h1>
+        <div class="product-price">$89.00</div>
+        <div class="product-description">
+          <p>Solidea Active Massage compression leggings provide graduated compression
+          of 12/15 mmHg for everyday comfort and support. Made with 80% Nylon, 18% Lycra,
+          and 2% Cotton. Footless design can be worn to the ankle or pulled over the heel.</p>
+        </div>
+        <div class="product-form__buttons">
+          <button class="add-to-cart">Add to Cart</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="test-controls">
+      <h3>Widget Test Controls</h3>
+      <label>
+        Simulate product type:
+        <select id="test-product-type">
+          <option value="">Auto-detect from page</option>
+          <option value="arm_sleeves">Arm Sleeves</option>
+          <option value="leggings" selected>Leggings</option>
+          <option value="capris">Capris</option>
+          <option value="socks">Knee-High Socks</option>
+          <option value="bras">Bras</option>
+        </select>
+      </label>
+      <label>
+        API URL:
+        <input type="text" id="test-api-url" value="http://localhost:8000" size="30">
+      </label>
+      <button onclick="reloadWidget()">Reload Widget</button>
+      <p>
+        The widget auto-detects "leggings" from the page title above.
+        Use the dropdown to override and test other product types.
+        Make sure the API is running: <code>uv run uvicorn app.main:app --reload --port 8000</code>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Configure and load the widget
+    window.SolideaSizingConfig = {
+      apiUrl: 'http://localhost:8000'
+    };
+
+    function reloadWidget() {
+      // Remove existing widget elements
+      var btn = document.querySelector('.solidea-sizing-btn');
+      var overlay = document.querySelector('.solidea-overlay');
+      if (btn) btn.parentNode.removeChild(btn);
+      if (overlay) overlay.parentNode.removeChild(overlay);
+
+      // Update config
+      var typeSelect = document.getElementById('test-product-type');
+      var apiInput = document.getElementById('test-api-url');
+
+      window.SolideaSizingConfig = {
+        apiUrl: apiInput.value,
+        productType: typeSelect.value || undefined
+      };
+
+      // Also update page title for auto-detection testing
+      var titles = {
+        arm_sleeves: 'Active Massage Arm Sleeves',
+        leggings: 'Active Massage Leggings',
+        capris: 'Active Massage Capris',
+        socks: 'Active Massage Knee-High Socks',
+        bras: 'Active Massage Sports Bra'
+      };
+      if (typeSelect.value && titles[typeSelect.value]) {
+        document.querySelector('.product__title').textContent = titles[typeSelect.value];
+        document.title = titles[typeSelect.value] + ' - Test Page';
+      }
+
+      // Reload script
+      var oldScript = document.getElementById('sizing-widget-script');
+      if (oldScript) oldScript.parentNode.removeChild(oldScript);
+
+      var script = document.createElement('script');
+      script.id = 'sizing-widget-script';
+      script.src = 'sizing-widget.js?' + Date.now(); // cache bust
+      document.body.appendChild(script);
+    }
+  </script>
+  <script id="sizing-widget-script" src="sizing-widget.js"></script>
+</body>
+</html>

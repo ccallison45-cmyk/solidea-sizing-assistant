@@ -1,0 +1,24 @@
+{% comment %}
+  Solidea Sizing Assistant Widget
+  ================================
+  Add this snippet to your Shopify theme to enable the sizing widget on product pages.
+
+  Installation:
+  1. Go to Shopify Admin > Online Store > Themes > Edit code
+  2. Open "Sections" > product-template.liquid (or your product section file)
+  3. Paste this snippet just before the closing </div> of the product info section
+  OR
+  4. Open "Layout" > theme.liquid and paste before </body> (loads on all pages)
+
+  Configuration:
+  - Replace YOUR_API_URL with your production API URL (e.g., https://solidea-sizing.up.railway.app)
+{% endcomment %}
+
+{% if template contains 'product' %}
+<script>
+  window.SolideaSizingConfig = {
+    apiUrl: 'YOUR_API_URL'
+  };
+</script>
+<script src="YOUR_API_URL/static/sizing-widget.js" defer></script>
+{% endif %}

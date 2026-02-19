@@ -1,0 +1,202 @@
+{
+  "name": "Solidea Sizing Email Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            { "mode": "everyMinute", "minute": 5 }
+          ]
+        },
+        "mailbox": "INBOX",
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "imap-trigger",
+      "name": "Check Inbox",
+      "type": "n8n-nodes-base.imapEmailTrigger",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "credentials": {
+        "imap": { "id": "REPLACE_WITH_IMAP_CREDENTIAL_ID", "name": "Solidea Inbox IMAP" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "combinator": "or",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.subject }}",
+              "rightValue": "size",
+              "operator": { "type": "string", "operation": "contains" }
+            },
+            {
+              "leftValue": "={{ $json.subject }}",
+              "rightValue": "sizing",
+              "operator": { "type": "string", "operation": "contains" }
+            },
+            {
+              "leftValue": "={{ $json.subject }}",
+              "rightValue": "measurement",
+              "operator": { "type": "string", "operation": "contains" }
+            },
+            {
+              "leftValue": "={{ $json.subject }}",
+              "rightValue": "fit",
+              "operator": { "type": "string", "operation": "contains" }
+            },
+            {
+              "leftValue": "={{ $json.textPlain }}",
+              "rightValue": "what size",
+              "operator": { "type": "string", "operation": "contains" }
+            },
+            {
+              "leftValue": "={{ $json.textPlain }}",
+              "rightValue": "which size",
+              "operator": { "type": "string", "operation": "contains" }
+            }
+          ]
+        }
+      },
+      "id": "filter-sizing",
+      "name": "Is Sizing Inquiry?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the email body for product type and measurements\nconst body = ($input.first().json.textPlain || '').toLowerCase();\nconst subject = ($input.first().json.subject || '').toLowerCase();\nconst combined = subject + ' ' + body;\n\n// Detect product type\nconst productKeywords = {\n  arm_sleeves: ['arm sleeve', 'arm-sleeve', 'armsleeve'],\n  leggings: ['legging', 'leggings'],\n  capris: ['capri', 'capris'],\n  socks: ['sock', 'knee-high', 'knee high'],\n  bras: ['bra ', 'bras', ' bra']\n};\n\nlet productType = null;\nfor (const [type, keywords] of Object.entries(productKeywords)) {\n  if (keywords.some(kw => combined.includes(kw))) {\n    productType = type;\n    break;\n  }\n}\n\n// Extract numbers from the email body\n// Look for patterns like: height 170cm, bust: 95 cm, weight 65kg, etc.\nconst measurementPatterns = {\n  height_cm: /height[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  weight_kg: /weight[:\\s]+([\\d.]+)\\s*(?:kg)?/i,\n  hip_circumference_cm: /hip[s]?[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  waist_circumference_cm: /waist[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  bust_circumference_cm: /bust[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  underbust_circumference_cm: /under[\\s-]?bust[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  upper_arm_circumference_cm: /(?:upper[\\s-]?arm|bicep)[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  forearm_circumference_cm: /forearm[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  wrist_circumference_cm: /wrist[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  calf_circumference_cm: /calf[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  ankle_circumference_cm: /ankle[:\\s]+([\\d.]+)\\s*(?:cm)?/i\n};\n\nconst measurements = {};\nfor (const [key, pattern] of Object.entries(measurementPatterns)) {\n  const match = body.match(pattern);\n  if (match) {\n    measurements[key] = parseFloat(match[1]);\n  }\n}\n\nconst hasMeasurements = Object.keys(measurements).length > 0;\n\nreturn [{\n  json: {\n    fromEmail: $input.first().json.from,\n    subject: $input.first().json.subject,\n    originalBody: $input.first().json.textPlain,\n    productType: productType,\n    measurements: measurements,\n    hasMeasurements: hasMeasurements,\n    canProcess: productType !== null && hasMeasurements\n  }\n}];"
+      },
+      "id": "parse-email",
+      "name": "Parse Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.canProcess }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "can-process",
+      "name": "Can Process?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "=REPLACE_WITH_API_URL/api/v1/size-recommendation",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ product_type: $json.productType, measurements: $json.measurements }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "call-api",
+      "name": "Get Size Recommendation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const apiResult = $input.first().json;\nconst emailData = $('Parse Email').first().json;\n\nconst productLabels = {\n  arm_sleeves: 'Arm Sleeves',\n  leggings: 'Leggings',\n  capris: 'Capris',\n  socks: 'Knee-High Socks',\n  bras: 'Bras'\n};\n\nconst productLabel = productLabels[emailData.productType] || emailData.productType;\n\nlet confidenceText = '';\nif (apiResult.confidence === 'exact') {\n  confidenceText = 'This is an exact match based on your measurements.';\n} else if (apiResult.confidence === 'interpolated') {\n  confidenceText = 'This is our closest recommendation. ' + (apiResult.notes || '');\n} else {\n  confidenceText = 'Your measurements fall outside our standard range. ' + (apiResult.notes || '');\n}\n\nreturn [{\n  json: {\n    toEmail: emailData.fromEmail,\n    subject: 'Your Solidea ' + productLabel + ' Size Recommendation',\n    recommendedSize: apiResult.recommended_size,\n    confidence: apiResult.confidence,\n    confidenceText: confidenceText,\n    notes: apiResult.notes || '',\n    productType: emailData.productType,\n    productLabel: productLabel\n  }\n}];"
+      },
+      "id": "format-reply",
+      "name": "Format Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "info@solideaus.com",
+        "toEmail": "={{ $json.toEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "html": "",
+        "options": {}
+      },
+      "id": "send-reply",
+      "name": "Send Auto-Reply",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 200],
+      "credentials": {
+        "smtp": { "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID", "name": "Solidea SMTP" }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "n8n-bot@solideaus.com",
+        "toEmail": "info@solideaus.com",
+        "subject": "=⚠️ Sizing inquiry needs manual review: {{ $('Parse Email').first().json.subject }}",
+        "emailType": "text",
+        "text": "=The following sizing inquiry could not be auto-processed.\n\nReason: {{ !$('Parse Email').first().json.productType ? 'Could not detect product type' : 'Could not extract measurements' }}\n\nOriginal From: {{ $('Parse Email').first().json.fromEmail }}\nOriginal Subject: {{ $('Parse Email').first().json.subject }}\n\nDetected Product Type: {{ $('Parse Email').first().json.productType || 'None' }}\nDetected Measurements: {{ JSON.stringify($('Parse Email').first().json.measurements) }}\n\n--- Original Email Body ---\n{{ $('Parse Email').first().json.originalBody }}",
+        "options": {}
+      },
+      "id": "forward-to-owner",
+      "name": "Forward to Owner",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1120, 420],
+      "credentials": {
+        "smtp": { "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID", "name": "Solidea SMTP" }
+      }
+    }
+  ],
+  "connections": {
+    "Check Inbox": {
+      "main": [
+        [{ "node": "Is Sizing Inquiry?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Is Sizing Inquiry?": {
+      "main": [
+        [{ "node": "Parse Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Email": {
+      "main": [
+        [{ "node": "Can Process?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Can Process?": {
+      "main": [
+        [{ "node": "Get Size Recommendation", "type": "main", "index": 0 }],
+        [{ "node": "Forward to Owner", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Size Recommendation": {
+      "main": [
+        [{ "node": "Format Reply", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Reply": {
+      "main": [
+        [{ "node": "Send Auto-Reply", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "sizing-assistant" },
+    { "name": "email-automation" }
+  ]
+}

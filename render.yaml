@@ -1,0 +1,19 @@
+# Render Blueprint — deploy via https://render.com/deploy
+services:
+  - type: web
+    name: solidea-sizing-api
+    runtime: python
+    plan: free
+    buildCommand: pip install uv && uv sync --no-dev
+    startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_LOG_LEVEL
+        value: info
+      - key: ALLOWED_ORIGINS
+        value: https://solideaus.com,https://www.solideaus.com
+      - key: SIZING_DATA_DIR
+        value: data
+    healthCheckPath: /health
+    autoDeploy: true
