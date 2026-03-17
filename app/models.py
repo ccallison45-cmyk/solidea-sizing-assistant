@@ -35,6 +35,23 @@ class ProductType(StrEnum):
     classic_armbands = "classic_armbands"
 
 
+# ── Shared models ────────────────────────────────────────────────
+
+
+class FieldSizeMappingResponse(BaseModel):
+    field: str
+    field_label: str
+    value: float
+    best_size: str
+
+
+class DisproportionResponse(BaseModel):
+    is_disproportionate: bool
+    size_spread: int
+    field_mappings: list[FieldSizeMappingResponse]
+    notes: str
+
+
 # ── V1 models ────────────────────────────────────────────────────
 
 
@@ -51,6 +68,7 @@ class SizingResponse(BaseModel):
     recommended_size: str
     confidence: Literal["exact", "interpolated", "out_of_range"]
     notes: str = ""
+    disproportion: DisproportionResponse | None = None
 
 
 # ── V2 conversation models ──────────────────────────────────────
@@ -59,6 +77,7 @@ class SizingResponse(BaseModel):
 class ConversationStartRequest(BaseModel):
     product_type: ProductType
     channel: str = "widget"
+    collect_all: bool = False
 
 
 class AnswerValue(BaseModel):
@@ -98,6 +117,7 @@ class ResultResponse(BaseModel):
     recommended_size: str
     confidence: str
     notes: str
+    disproportion: DisproportionResponse | None = None
 
 
 class ConversationStepResponse(BaseModel):

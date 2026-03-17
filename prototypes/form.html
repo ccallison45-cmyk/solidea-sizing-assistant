@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solidea Sizing - Single Page Form</title>
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    .form-section {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    #result-section {
+      scroll-margin-top: 20px;
+    }
+
+    .reset-btn {
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Find Your Size</h1>
+    <div class="subtitle">Version B: Single Page Form</div>
+  </div>
+
+  <div class="container">
+    <a href="index.html" class="back-link">&larr; Back to all versions</a>
+
+    <div class="product-selector">
+      <label for="product-select">What product are you shopping for?</label>
+      <select id="product-select"></select>
+    </div>
+
+    <div class="tip-banner">
+      Use a soft cloth measuring tape. Keep it snug against your skin but not tight.
+      All measurements should be taken while standing.
+    </div>
+
+    <!-- Unit preference -->
+    <div class="field-group">
+      <span class="field-label">I prefer to measure in:</span>
+      <div class="unit-toggle" style="margin-top: 8px; display: inline-flex;">
+        <button type="button" class="unit-btn active" data-system="metric">Centimeters / Kilograms</button>
+        <button type="button" class="unit-btn" data-system="imperial">Inches / Pounds</button>
+      </div>
+    </div>
+
+    <div id="fields-container"></div>
+
+    <div id="submit-section" class="hidden">
+      <button type="button" id="submit-btn" class="btn btn-primary" disabled>
+        Get My Size
+      </button>
+    </div>
+
+    <div id="result-section"></div>
+  </div>
+
+  <script src="shared.js"></script>
+  <script>
+    (function () {
+      var select = document.getElementById('product-select');
+      var fieldsContainer = document.getElementById('fields-container');
+      var submitSection = document.getElementById('submit-section');
+      var submitBtn = document.getElementById('submit-btn');
+      var resultSection = document.getElementById('result-section');
+
+      var currentProduct = '';
+      var fieldData = {};   // { fieldName: { label, unit, global_min, global_max } }
+      var useImperial = false;
+
+      SizingAPI.populateProductSelect(select, SizingAPI.getProductFromURL());
+
+      // Unit toggle
+      document.querySelectorAll('.unit-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          document.querySelectorAll('.unit-btn').forEach(function (b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          useImperial = btn.getAttribute('data-system') === 'imperial';
+          updateUnitLabels();
+        });
+      });
+
+      function updateUnitLabels() {
+        var unitSpans = document.querySelectorAll('.unit-label');
+        unitSpans.forEach(function (span) {
+          var baseUnit = span.getAttribute('data-unit');
+          span.textContent = SizingAPI.getDisplayUnit(baseUnit, useImperial);
+        });
+      }
+
+      function loadFields(productType) {
+        currentProduct = productType;
+        fieldsContainer.innerHTML = '<p>Loading measurements...</p>';
+        submitSection.classList.add('hidden');
+        resultSection.innerHTML = '';
+
+        SizingAPI.getProductFields(productType).then(function (data) {
+          if (data.error) {
+            fieldsContainer.innerHTML = '<p style="color:red;">' + data.error + '</p>';
+            return;
+          }
+
+          fieldData = data.fields;
+          var html = '<div class="form-section">';
+
+          var fieldNames = Object.keys(fieldData);
+          fieldNames.forEach(function (fieldName, i) {
+            var f = fieldData[fieldName];
+            var helpText = SizingAPI.getFieldHelp(fieldName);
+
+            html += '<div class="field-group">' +
+              '<label class="field-label" for="input-' + fieldName + '">' + f.label + '</label>' +
+              '<span class="field-help">' + helpText + '</span>' +
+              '<div class="field-input-row">' +
+              '<input type="number" class="field-input measurement-input" ' +
+              'id="input-' + fieldName + '" ' +
+              'data-field="' + fieldName + '" ' +
+              'data-unit="' + f.unit + '" ' +
+              'placeholder="Enter value" ' +
+              'min="0" step="0.1">' +
+              '<span class="unit-label" data-unit="' + f.unit + '">' +
+              SizingAPI.getDisplayUnit(f.unit, useImperial) + '</span>' +
+              '</div>' +
+              '</div>';
+          });
+
+          html += '</div>';
+          fieldsContainer.innerHTML = html;
+          submitSection.classList.remove('hidden');
+
+          // Attach input listeners
+          document.querySelectorAll('.measurement-input').forEach(function (input) {
+            input.addEventListener('input', checkFormValidity);
+          });
+
+          checkFormValidity();
+        });
+      }
+
+      function checkFormValidity() {
+        var inputs = document.querySelectorAll('.measurement-input');
+        var allFilled = true;
+        inputs.forEach(function (input) {
+          var val = parseFloat(input.value);
+          if (isNaN(val) || val <= 0) {
+            allFilled = false;
+          }
+        });
+        submitBtn.disabled = !allFilled;
+      }
+
+      function submitMeasurements() {
+        var inputs = document.querySelectorAll('.measurement-input');
+        var measurements = {};
+
+        inputs.forEach(function (input) {
+          var fieldName = input.getAttribute('data-field');
+          var fieldUnit = input.getAttribute('data-unit');
+          var rawValue = parseFloat(input.value);
+          measurements[fieldName] = SizingAPI.toMetric(rawValue, fieldUnit, useImperial);
+        });
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner"></span> Calculating...';
+
+        SizingAPI.getRecommendation(currentProduct, measurements).then(function (result) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Get My Size';
+
+          resultSection.innerHTML = SizingAPI.renderResultCard(result) +
+            '<button type="button" class="btn btn-secondary reset-btn" ' +
+            'onclick="document.querySelectorAll(\'.measurement-input\').forEach(function(i){i.value=\'\';});' +
+            'document.getElementById(\'result-section\').innerHTML=\'\';' +
+            'document.getElementById(\'submit-btn\').disabled=true;">' +
+            'Start Over</button>';
+
+          resultSection.scrollIntoView({ behavior: 'smooth' });
+        }).catch(function (err) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Get My Size';
+          resultSection.innerHTML = '<div class="result-card" style="border-color:red;">' +
+            '<p style="color:red;">Something went wrong. Please try again.</p></div>';
+        });
+      }
+
+      select.addEventListener('change', function () {
+        loadFields(select.value);
+        // Update URL without reload
+        var url = new URL(window.location);
+        url.searchParams.set('product', select.value);
+        window.history.replaceState({}, '', url);
+      });
+
+      submitBtn.addEventListener('click', submitMeasurements);
+
+      loadFields(SizingAPI.getProductFromURL());
+    })();
+  </script>
+</body>
+</html>

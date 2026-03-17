@@ -22,6 +22,7 @@ class ConversationSession:
     channel: str = "widget"
     measurements: dict[str, float] = field(default_factory=dict)
     current_step: int = 0
+    collect_all: bool = False
     skipped: list[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
@@ -39,13 +40,17 @@ class SessionStore:
         self._ttl = ttl_seconds
 
     def create(
-        self, product_type: str | None = None, channel: str = "widget"
+        self,
+        product_type: str | None = None,
+        channel: str = "widget",
+        collect_all: bool = False,
     ) -> ConversationSession:
         session_id = uuid.uuid4().hex[:12]
         session = ConversationSession(
             session_id=session_id,
             product_type=product_type,
             channel=channel,
+            collect_all=collect_all,
         )
         with self._lock:
             self._sessions[session_id] = session

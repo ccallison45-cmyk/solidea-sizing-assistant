@@ -13,6 +13,8 @@ from app.models import (
     ConversationBatchRequest,
     ConversationStartRequest,
     ConversationStepResponse,
+    DisproportionResponse,
+    FieldSizeMappingResponse,
     ProgressResponse,
     QuestionResponse,
     ResultResponse,
@@ -61,10 +63,22 @@ def _to_response(step: StepResponse) -> ConversationStepResponse:
 
     result = None
     if step.result is not None:
+        disproportion = None
+        if step.result.disproportion is not None:
+            dp = step.result.disproportion
+            disproportion = DisproportionResponse(
+                is_disproportionate=dp.is_disproportionate,
+                size_spread=dp.size_spread,
+                field_mappings=[
+                    FieldSizeMappingResponse(**fm) for fm in dp.field_mappings
+                ],
+                notes=dp.notes,
+            )
         result = ResultResponse(
             recommended_size=step.result.recommended_size,
             confidence=step.result.confidence,
             notes=step.result.notes,
+            disproportion=disproportion,
         )
 
     return ConversationStepResponse(
@@ -88,6 +102,7 @@ async def conversation_start(request: ConversationStartRequest):
     session = store.create(
         product_type=request.product_type.value,
         channel=request.channel,
+        collect_all=request.collect_all,
     )
     step = manager.start(session)
     return _to_response(step)

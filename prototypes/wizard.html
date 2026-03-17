@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solidea Sizing - Step by Step</title>
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    .wizard-card {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 32px 24px;
+      min-height: 300px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .wizard-card .field-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .wizard-card .field-input {
+      font-size: 28px;
+      height: 64px;
+      text-align: center;
+    }
+
+    .wizard-card .field-label {
+      font-size: 22px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .wizard-card .field-help {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .wizard-card .field-input-row {
+      justify-content: center;
+      max-width: 300px;
+      margin: 0 auto;
+    }
+
+    .wizard-card .unit-label-inline {
+      font-size: 20px;
+      color: var(--gray-mid);
+      font-weight: 600;
+      min-width: 30px;
+    }
+
+    .nav-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    /* Review screen */
+    .review-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .review-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid #eee;
+      font-size: var(--font-body);
+    }
+
+    .review-item:last-child {
+      border-bottom: none;
+    }
+
+    .review-label {
+      color: var(--navy);
+      font-weight: 600;
+    }
+
+    .review-value {
+      color: var(--gray-dark);
+    }
+
+    .review-edit {
+      color: var(--gold-hover);
+      cursor: pointer;
+      font-size: var(--font-help);
+      text-decoration: underline;
+      margin-left: 12px;
+    }
+
+    /* Welcome screen */
+    .welcome-text {
+      text-align: center;
+      font-size: var(--font-body);
+      color: var(--gray-dark);
+      line-height: 1.7;
+      padding: 20px 0;
+    }
+
+    .welcome-text strong {
+      color: var(--navy);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Find Your Size</h1>
+    <div class="subtitle">Version A: Step by Step</div>
+  </div>
+
+  <div class="container">
+    <a href="index.html" class="back-link">&larr; Back to all versions</a>
+
+    <div class="product-selector">
+      <label for="product-select">What product are you shopping for?</label>
+      <select id="product-select"></select>
+    </div>
+
+    <div id="progress-area" class="progress-bar hidden">
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+      </div>
+      <span class="progress-text" id="progress-text">Step 1 of 4</span>
+    </div>
+
+    <div id="wizard-area"></div>
+  </div>
+
+  <script src="shared.js"></script>
+  <script>
+    (function () {
+      var select = document.getElementById('product-select');
+      var wizardArea = document.getElementById('wizard-area');
+      var progressArea = document.getElementById('progress-area');
+      var progressFill = document.getElementById('progress-fill');
+      var progressText = document.getElementById('progress-text');
+
+      var sessionId = null;
+      var currentProduct = '';
+      var useImperial = false;
+      var answers = [];       // { question, value, displayValue }
+      var currentQuestion = null;
+      var totalSteps = 0;
+      var currentStep = 0;
+
+      SizingAPI.populateProductSelect(select, SizingAPI.getProductFromURL());
+
+      function showWelcome() {
+        progressArea.classList.add('hidden');
+        answers = [];
+        sessionId = null;
+
+        wizardArea.innerHTML =
+          '<div class="wizard-card">' +
+          '<div class="welcome-text">' +
+          '<p><strong>Let\'s find your perfect fit!</strong></p>' +
+          '<p style="margin-top:12px;">I\'ll ask you a few quick measurements, ' +
+          'one at a time. You\'ll need a soft measuring tape.</p>' +
+          '<p style="margin-top:12px;">Keep the tape snug but not tight. ' +
+          'All measurements are taken while standing.</p>' +
+          '</div>' +
+          '<div style="margin-top:16px;">' +
+          '<span class="field-label" style="text-align:left;">I prefer to measure in:</span>' +
+          '<div class="unit-toggle" style="margin-top:8px;display:inline-flex;">' +
+          '<button type="button" class="unit-btn ' + (!useImperial ? 'active' : '') + '" data-system="metric">cm / kg</button>' +
+          '<button type="button" class="unit-btn ' + (useImperial ? 'active' : '') + '" data-system="imperial">in / lbs</button>' +
+          '</div>' +
+          '</div>' +
+          '<div class="nav-row" style="margin-top:24px;">' +
+          '<div></div>' +
+          '<button type="button" class="btn btn-primary btn-nav" id="start-btn" style="width:auto;padding:0 48px;">Let\'s Go!</button>' +
+          '</div>' +
+          '</div>';
+
+        // Unit toggle handlers
+        wizardArea.querySelectorAll('.unit-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            wizardArea.querySelectorAll('.unit-btn').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            useImperial = btn.getAttribute('data-system') === 'imperial';
+          });
+        });
+
+        document.getElementById('start-btn').addEventListener('click', startConversation);
+      }
+
+      function startConversation() {
+        currentProduct = select.value;
+        wizardArea.innerHTML = '<div class="wizard-card"><p>Loading...</p></div>';
+
+        SizingAPI.conversationStart(currentProduct, true).then(function (data) {
+          sessionId = data.session_id;
+          totalSteps = data.progress.estimated_total;
+          currentStep = data.progress.current;
+
+          if (data.status === 'complete' && data.result) {
+            showResult(data);
+            return;
+          }
+
+          if (data.question) {
+            currentQuestion = data.question;
+            showQuestion(data.question, data.progress);
+          }
+        });
+      }
+
+      function showQuestion(question, progress) {
+        currentStep = progress.current;
+        totalSteps = progress.estimated_total;
+
+        progressArea.classList.remove('hidden');
+        var pct = Math.round((currentStep / totalSteps) * 100);
+        progressFill.style.width = pct + '%';
+        progressText.textContent = 'Step ' + currentStep + ' of ' + totalSteps;
+
+        var unitForField = guessUnit(question.input_type);
+        var displayUnit = SizingAPI.getDisplayUnit(unitForField, useImperial);
+
+        wizardArea.innerHTML =
+          '<div class="wizard-card">' +
+          '<div class="field-group">' +
+          '<label class="field-label" for="wizard-input">' + question.text + '</label>' +
+          '<span class="field-help">' + question.help_text + '</span>' +
+          '<div class="field-input-row">' +
+          '<input type="number" class="field-input" id="wizard-input" ' +
+          'placeholder="0" min="0" step="0.1" autofocus>' +
+          '<span class="unit-label-inline">' + displayUnit + '</span>' +
+          '</div>' +
+          '</div>' +
+          '<div class="nav-row">' +
+          '<button type="button" class="btn btn-secondary btn-nav" id="back-btn">' +
+          (answers.length > 0 ? 'Back' : 'Cancel') +
+          '</button>' +
+          '<button type="button" class="btn btn-primary btn-nav" id="next-btn" disabled>Next</button>' +
+          '</div>' +
+          '</div>';
+
+        var input = document.getElementById('wizard-input');
+        var nextBtn = document.getElementById('next-btn');
+        var backBtn = document.getElementById('back-btn');
+
+        input.addEventListener('input', function () {
+          var v = parseFloat(input.value);
+          nextBtn.disabled = isNaN(v) || v <= 0;
+        });
+
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' && !nextBtn.disabled) {
+            submitAnswer();
+          }
+        });
+
+        nextBtn.addEventListener('click', submitAnswer);
+
+        backBtn.addEventListener('click', function () {
+          if (answers.length === 0) {
+            showWelcome();
+          } else {
+            // Go back: restart and replay previous answers
+            goBack();
+          }
+        });
+
+        // Focus the input
+        setTimeout(function () { input.focus(); }, 100);
+
+        function submitAnswer() {
+          var rawValue = parseFloat(input.value);
+          var unitForField = guessUnit(question.input_type);
+          var metricValue = SizingAPI.toMetric(rawValue, unitForField, useImperial);
+
+          // Store the answer for review/back
+          answers.push({
+            question: question,
+            rawValue: rawValue,
+            displayValue: rawValue + ' ' + SizingAPI.getDisplayUnit(unitForField, useImperial),
+            metricValue: metricValue
+          });
+
+          nextBtn.disabled = true;
+          nextBtn.innerHTML = '<span class="spinner"></span>';
+
+          // Send the metric value as a string to the conversation API
+          SizingAPI.conversationAnswer(sessionId, String(metricValue)).then(function (data) {
+            if (data.status === 'complete' && data.result) {
+              showReview(data);
+            } else if (data.question) {
+              currentQuestion = data.question;
+              showQuestion(data.question, data.progress);
+            } else {
+              showReview(data);
+            }
+          });
+        }
+      }
+
+      function goBack() {
+        // Remove last answer and restart conversation, replaying all but the last
+        answers.pop();
+
+        wizardArea.innerHTML = '<div class="wizard-card"><p>Going back...</p></div>';
+
+        // Restart and replay
+        SizingAPI.conversationStart(currentProduct, true).then(function (data) {
+          sessionId = data.session_id;
+          totalSteps = data.progress.estimated_total;
+
+          if (answers.length === 0) {
+            if (data.question) {
+              currentQuestion = data.question;
+              showQuestion(data.question, data.progress);
+            }
+            return;
+          }
+
+          // Replay all stored answers
+          replayAnswers(0, data);
+        });
+      }
+
+      function replayAnswers(index, lastData) {
+        if (index >= answers.length) {
+          // Done replaying, show the next question
+          if (lastData.question) {
+            currentQuestion = lastData.question;
+            showQuestion(lastData.question, lastData.progress);
+          }
+          return;
+        }
+
+        var a = answers[index];
+        SizingAPI.conversationAnswer(sessionId, String(a.metricValue)).then(function (data) {
+          replayAnswers(index + 1, data);
+        });
+      }
+
+      function showReview(data) {
+        progressArea.classList.remove('hidden');
+        progressFill.style.width = '100%';
+        progressText.textContent = 'Review';
+
+        var listHtml = '';
+        answers.forEach(function (a, i) {
+          listHtml += '<li class="review-item">' +
+            '<span class="review-label">' + a.question.text.replace('?', '') + '</span>' +
+            '<span><span class="review-value">' + a.displayValue + '</span></span>' +
+            '</li>';
+        });
+
+        wizardArea.innerHTML =
+          '<div class="wizard-card">' +
+          '<h2 style="text-align:center;color:var(--navy);margin-bottom:16px;">Review Your Measurements</h2>' +
+          '<p style="text-align:center;color:var(--gray-mid);font-size:var(--font-help);margin-bottom:20px;">' +
+          'Make sure everything looks correct before we calculate your size.</p>' +
+          '<ul class="review-list">' + listHtml + '</ul>' +
+          '<div class="nav-row" style="margin-top:24px;">' +
+          '<button type="button" class="btn btn-secondary btn-nav" id="review-back">Back</button>' +
+          '<button type="button" class="btn btn-primary btn-nav" id="review-submit" style="flex:1;">Get My Size</button>' +
+          '</div>' +
+          '</div>';
+
+        document.getElementById('review-back').addEventListener('click', function () {
+          goBack();
+        });
+
+        document.getElementById('review-submit').addEventListener('click', function () {
+          showResult(data);
+        });
+      }
+
+      function showResult(data) {
+        progressArea.classList.add('hidden');
+
+        wizardArea.innerHTML = SizingAPI.renderResultCard(data.result) +
+          '<button type="button" class="btn btn-secondary" style="width:100%;margin-top:16px;" ' +
+          'id="restart-btn">Start Over</button>';
+
+        document.getElementById('restart-btn').addEventListener('click', function () {
+          showWelcome();
+        });
+      }
+
+      function guessUnit(inputType) {
+        if (inputType === 'weight') return 'kg';
+        return 'cm';
+      }
+
+      select.addEventListener('change', function () {
+        var url = new URL(window.location);
+        url.searchParams.set('product', select.value);
+        window.history.replaceState({}, '', url);
+        showWelcome();
+      });
+
+      showWelcome();
+    })();
+  </script>
+</body>
+</html>

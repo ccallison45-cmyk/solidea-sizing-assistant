@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from app.conversation.flows import ConversationFlow, MeasurementQuestion, get_flow
 from app.conversation.parser import parse_measurement
 from app.conversation.sessions import ConversationSession
+from app.sizing.disproportion import analyze_disproportion
 from app.sizing.progressive import ProgressiveResult, evaluate_partial
 
 logger = logging.getLogger(__name__)
@@ -44,10 +45,19 @@ class ProgressPayload:
 
 
 @dataclass
+class DisproportionPayload:
+    is_disproportionate: bool
+    size_spread: int
+    field_mappings: list[dict]
+    notes: str
+
+
+@dataclass
 class ResultPayload:
     recommended_size: str
     confidence: str
     notes: str
+    disproportion: DisproportionPayload | None = None
 
 
 class ConversationManager:
@@ -74,7 +84,7 @@ class ConversationManager:
         if first_q is None:
             return self._build_result(session, flow)
 
-        total = self._estimate_total_questions(flow)
+        total = self._estimate_total_questions(flow, collect_all=session.collect_all)
         return StepResponse(
             session_id=session.session_id,
             message=flow.greeting,
@@ -116,7 +126,7 @@ class ConversationManager:
                     question=self._question_to_payload(current_q),
                     progress=ProgressPayload(
                         current=self._answered_count(session) + 1,
-                        estimated_total=self._estimate_total_questions(flow),
+                        estimated_total=self._estimate_total_questions(flow, session.collect_all),
                     ),
                     result=None,
                     status="in_progress",
@@ -137,7 +147,7 @@ class ConversationManager:
                 question=self._question_to_payload(current_q),
                 progress=ProgressPayload(
                     current=self._answered_count(session) + 1,
-                    estimated_total=self._estimate_total_questions(flow),
+                    estimated_total=self._estimate_total_questions(flow, session.collect_all),
                 ),
                 result=None,
                 status="in_progress",
@@ -146,8 +156,8 @@ class ConversationManager:
         session.current_step += 1
         session.touch()
 
-        # Check if we can give a definitive result early
-        if session.measurements:
+        # Check if we can give a definitive result early (skip when collecting all)
+        if not session.collect_all and session.measurements:
             progressive = evaluate_partial(
                 session.product_type, session.measurements, self._sizing_data
             )
@@ -166,7 +176,7 @@ class ConversationManager:
             question=self._question_to_payload(next_q),
             progress=ProgressPayload(
                 current=answered + 1,
-                estimated_total=self._estimate_total_questions(flow),
+                estimated_total=self._estimate_total_questions(flow, session.collect_all),
             ),
             result=None,
             status="in_progress",
@@ -239,8 +249,8 @@ class ConversationManager:
                 session.current_step = i + 1
                 continue
 
-            # Check condition
-            if q.condition == "between_sizes":
+            # Check condition (skip condition check when collecting all measurements)
+            if q.condition == "between_sizes" and not session.collect_all:
                 if not self._is_between_sizes(session):
                     session.current_step = i + 1
                     continue
@@ -295,6 +305,34 @@ class ConversationManager:
             if notes:
                 message = f"{message} {notes}"
 
+        # Analyze disproportion if we have at least 2 measurements
+        disproportion_payload = None
+        if len(session.measurements) >= 2:
+            report = analyze_disproportion(
+                session.product_type, session.measurements, self._sizing_data
+            )
+            if report.is_disproportionate:
+                disproportion_payload = DisproportionPayload(
+                    is_disproportionate=True,
+                    size_spread=report.size_spread,
+                    field_mappings=[
+                        {
+                            "field": m.field,
+                            "field_label": m.field.replace("_cm", "")
+                            .replace("_kg", "")
+                            .replace("_circumference", "")
+                            .replace("_", " "),
+                            "value": m.value,
+                            "best_size": m.best_size,
+                        }
+                        for m in report.field_mappings
+                    ],
+                    notes=report.notes,
+                )
+                # Append disproportion note to the message
+                if report.notes:
+                    message = f"{message}\n\n{report.notes}"
+
         answered = self._answered_count(session)
         return StepResponse(
             session_id=session.session_id,
@@ -305,6 +343,7 @@ class ConversationManager:
                 recommended_size=size,
                 confidence=progressive.confidence,
                 notes=notes,
+                disproportion=disproportion_payload,
             ),
             status="complete",
         )
@@ -321,8 +360,13 @@ class ConversationManager:
                 return q
         return None
 
-    def _estimate_total_questions(self, flow: ConversationFlow) -> int:
-        """Estimate the total number of required questions (excluding conditional ones)."""
+    def _estimate_total_questions(self, flow: ConversationFlow, collect_all: bool = False) -> int:
+        """Estimate the total number of questions.
+
+        When collect_all is True, all questions count (including conditional ones).
+        """
+        if collect_all:
+            return len(flow.questions)
         return sum(1 for q in flow.questions if q.condition is None)
 
     def _answered_count(self, session: ConversationSession) -> int:

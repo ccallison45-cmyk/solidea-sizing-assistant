@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solidea Sizing Assistant - Prototype Comparison</title>
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <div class="header">
+    <h1>Solidea Sizing Assistant</h1>
+    <div class="subtitle">Prototype Comparison</div>
+  </div>
+
+  <div class="container">
+    <div class="product-selector">
+      <label for="product-select">Select a product type to test with:</label>
+      <select id="product-select"></select>
+    </div>
+
+    <p style="font-size: 18px; color: #555; margin-bottom: 8px;">
+      Choose a prototype below to try it out. Each one presents the same sizing questions
+      in a different format. Try all three and decide which is easiest to use.
+    </p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h2>Version A: Step-by-Step</h2>
+        <p>
+          One question at a time, like a friendly guide walking you through each
+          measurement. Includes a review screen before showing your size.
+        </p>
+        <a id="link-wizard" class="btn btn-primary" href="wizard.html?product=leggings">
+          Try This Version
+        </a>
+      </div>
+
+      <div class="card">
+        <h2>Version B: Single Page Form</h2>
+        <p>
+          All measurements on one page so you can see everything at once.
+          Fill them in any order, then get your size at the bottom.
+        </p>
+        <a id="link-form" class="btn btn-primary" href="form.html?product=leggings">
+          Try This Version
+        </a>
+      </div>
+
+      <div class="card">
+        <h2>Version C: Body Map</h2>
+        <p>
+          A body diagram shows exactly where to measure. Tap a spot on the body
+          to enter that measurement. Visual and intuitive.
+        </p>
+        <a id="link-bodymap" class="btn btn-primary" href="body-map.html?product=leggings">
+          Try This Version
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="shared.js"></script>
+  <script>
+    (function () {
+      var select = document.getElementById('product-select');
+      SizingAPI.populateProductSelect(select, SizingAPI.getProductFromURL());
+
+      function updateLinks() {
+        var p = select.value;
+        document.getElementById('link-wizard').href = 'wizard.html?product=' + p;
+        document.getElementById('link-form').href = 'form.html?product=' + p;
+        document.getElementById('link-bodymap').href = 'body-map.html?product=' + p;
+      }
+
+      select.addEventListener('change', updateLinks);
+      updateLinks();
+    })();
+  </script>
+</body>
+</html>
