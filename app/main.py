@@ -67,19 +67,6 @@ app.add_middleware(
 )
 
 
-# Serve widget static files
-widget_dir = Path(__file__).resolve().parent.parent / "widget"
-if widget_dir.is_dir():
-    app.mount("/static", StaticFiles(directory=str(widget_dir)), name="static")
-
-# Serve prototype pages (dev only)
-prototypes_dir = Path(__file__).resolve().parent.parent / "prototypes"
-if prototypes_dir.is_dir():
-    app.mount(
-        "/prototypes", StaticFiles(directory=str(prototypes_dir), html=True), name="prototypes"
-    )
-
-
 # V2 conversation endpoints
 app.include_router(conversation_router)
 
@@ -168,3 +155,16 @@ async def size_recommendation(request: SizingRequest):
             )
 
     return SizingResponse(**result, disproportion=disproportion)
+
+
+# ── Static file mounts (must come after all route definitions) ───
+
+widget_dir = Path(__file__).resolve().parent.parent / "widget"
+if widget_dir.is_dir():
+    app.mount("/static", StaticFiles(directory=str(widget_dir)), name="static")
+
+prototypes_dir = Path(__file__).resolve().parent.parent / "prototypes"
+if prototypes_dir.is_dir():
+    app.mount(
+        "/prototypes", StaticFiles(directory=str(prototypes_dir), html=True), name="prototypes"
+    )
