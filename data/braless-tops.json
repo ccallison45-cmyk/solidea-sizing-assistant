@@ -1,0 +1,23 @@
+[
+  {
+    "size": "S",
+    "measurements": {
+      "bust_circumference_cm": { "min": 72, "max": 80 },
+      "waist_circumference_cm": { "min": 59, "max": 67 }
+    }
+  },
+  {
+    "size": "M",
+    "measurements": {
+      "bust_circumference_cm": { "min": 79, "max": 87 },
+      "waist_circumference_cm": { "min": 64, "max": 72 }
+    }
+  },
+  {
+    "size": "L",
+    "measurements": {
+      "bust_circumference_cm": { "min": 86, "max": 94 },
+      "waist_circumference_cm": { "min": 70, "max": 78 }
+    }
+  }
+]

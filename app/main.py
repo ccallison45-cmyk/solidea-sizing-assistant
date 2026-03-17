@@ -7,8 +7,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.conversation.router import init_conversation
+from app.conversation.router import router as conversation_router
 from app.models import SizingRequest, SizingResponse
 from app.sizing.engine import recommend_size
 from app.sizing.loader import load_sizing_data
@@ -31,6 +34,7 @@ async def lifespan(app: FastAPI):
     logger.info("Loading sizing data from %s", data_dir)
     _sizing_data = load_sizing_data(data_dir)
     logger.info("Sizing data loaded: %s", list(_sizing_data.keys()))
+    init_conversation(_sizing_data)
     yield
     _sizing_data = {}
 
@@ -61,6 +65,19 @@ app.add_middleware(
 widget_dir = Path(__file__).resolve().parent.parent / "widget"
 if widget_dir.is_dir():
     app.mount("/static", StaticFiles(directory=str(widget_dir)), name="static")
+
+
+# V2 conversation endpoints
+app.include_router(conversation_router)
+
+
+# Serve test conversation page (dev only)
+_test_page = Path(__file__).resolve().parent.parent / "test-conversation.html"
+
+
+@app.get("/test")
+async def test_page():
+    return FileResponse(str(_test_page), media_type="text/html")
 
 
 @app.get("/health")

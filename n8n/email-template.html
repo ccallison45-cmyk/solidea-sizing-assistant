@@ -26,8 +26,11 @@
           <tr>
             <td style="padding:32px 32px 16px;">
               <p style="margin:0;font-size:16px;color:#333;line-height:1.6;">
+                Hi {{ customerName }},
+              </p>
+              <p style="margin:12px 0 0;font-size:16px;color:#333;line-height:1.6;">
                 Thank you for reaching out about sizing for our
-                <strong>{{ $json.productLabel }}</strong>.
+                <strong>{{ productLabel }}</strong>.
                 Based on the measurements you provided, here is our recommendation:
               </p>
             </td>
@@ -45,10 +48,10 @@
                       Your Recommended Size
                     </p>
                     <p style="margin:0;font-size:56px;font-weight:700;color:#1a1a2e;">
-                      {{ $json.recommendedSize }}
+                      {{ recommendedSize }}
                     </p>
                     <p style="margin:12px 0 0;font-size:14px;color:#555;">
-                      {{ $json.confidenceText }}
+                      {{ confidenceText }}
                     </p>
                   </td>
                 </tr>
@@ -59,7 +62,8 @@
           <!-- Notes (if any) -->
           <tr>
             <td style="padding:0 32px 24px;">
-              {{ $json.notes ? '<p style="margin:0;font-size:14px;color:#777;font-style:italic;line-height:1.5;background:#f8f6f1;padding:16px;border-left:3px solid #c9a96e;">' + $json.notes + '</p>' : '' }}
+              <!-- Only rendered if notes is non-empty -->
+              {{ notesHtml }}
             </td>
           </tr>
 
@@ -112,3 +116,25 @@
   </table>
 </body>
 </html>
+
+<!--
+PLAIN TEXT VERSION (used as fallback in email clients that don't render HTML):
+
+Hi {{ customerName }},
+
+Thank you for reaching out about sizing for our {{ productLabel }}.
+
+Based on the measurements you provided, your recommended size is: {{ recommendedSize }}
+
+{{ confidenceText }}
+
+{{ notes }}
+
+Tip: If you are between sizes, Solidea recommends sizing up for a more comfortable fit.
+
+Shop now: https://www.solideaus.com/collections/all
+
+Need more help? Reply to this email or call us at 888-841-8834
+
+Solidea USA | solideaus.com
+-->

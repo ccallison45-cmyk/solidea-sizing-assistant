@@ -7,11 +7,32 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 EXPECTED_PRODUCT_FILES = {
+    # Active Massage Compression — Hands & Arm
     "arm_sleeves": "arm-sleeves.json",
+    "gauntlets": "gauntlets.json",
+    "armbands": "armbands.json",
+    # Active Massage Compression — Breast & Trunk
+    "bras": "bras.json",
+    "braless_tops": "braless-tops.json",
+    "tops_with_bra": "tops-with-bra.json",
+    "abdominal_band": "abdominal-band.json",
+    # Active Massage Compression — Lower Body
     "leggings": "leggings.json",
     "capris": "capris.json",
+    "shorts": "shorts.json",
+    "bike_shorts": "bike-shorts.json",
+    "opaque_leggings": "opaque-leggings.json",
+    "opaque_capris": "opaque-capris.json",
+    "high_waist_legging": "high-waist-legging.json",
+    # Active Massage Compression — Foot + Lower Leg
     "socks": "socks.json",
-    "bras": "bras.json",
+    "calf_sleeves": "calf-sleeves.json",
+    "thigh_highs": "thigh-highs.json",
+    # Active Massage Compression — Men's
+    "mens_briefs": "mens-briefs.json",
+    # Classic Compression
+    "classic_arm_sleeves": "classic-arm-sleeves.json",
+    "classic_armbands": "classic-armbands.json",
 }
 
 

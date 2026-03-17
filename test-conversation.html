@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solidea Sizing Assistant — Test</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #1a1a2e; }
+  .container { max-width: 480px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); overflow: hidden; }
+  .header { background: #1a1a2e; color: #fff; padding: 20px; text-align: center; }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .header p { font-size: 13px; opacity: 0.7; margin-top: 4px; }
+  .chat { padding: 20px; min-height: 300px; max-height: 500px; overflow-y: auto; }
+  .message { margin-bottom: 16px; animation: fadeIn 0.3s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .message.assistant { }
+  .message.user { text-align: right; }
+  .message .bubble { display: inline-block; max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+  .message.assistant .bubble { background: #f0f0f5; color: #1a1a2e; border-bottom-left-radius: 4px; text-align: left; }
+  .message.user .bubble { background: #c9a96e; color: #fff; border-bottom-right-radius: 4px; }
+  .help-text { font-size: 12px; color: #888; margin-top: 6px; padding-left: 4px; }
+  .input-area { padding: 16px 20px; border-top: 1px solid #eee; display: flex; gap: 8px; }
+  .input-area input { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+  .input-area input:focus { border-color: #c9a96e; }
+  .input-area button { padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  .btn-send { background: #c9a96e; color: #fff; }
+  .btn-send:hover { background: #b8954f; }
+  .btn-skip { background: #eee; color: #666; font-size: 12px; padding: 10px 12px; }
+  .btn-skip:hover { background: #ddd; }
+  .btn-skip:disabled { opacity: 0.3; cursor: not-allowed; }
+  .setup { padding: 20px; }
+  .setup label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px; }
+  .setup select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+  .btn-start { width: 100%; padding: 12px; background: #1a1a2e; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-start:hover { background: #2a2a4e; }
+  .result { background: #f0f8f0; border: 1px solid #c0e0c0; border-radius: 8px; padding: 14px; margin-top: 8px; }
+  .result .size { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+  .result .confidence { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .progress { font-size: 11px; color: #aaa; margin-bottom: 8px; }
+  .restart { text-align: center; margin-top: 16px; }
+  .restart button { background: none; border: 1px solid #c9a96e; color: #c9a96e; padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .restart button:hover { background: #c9a96e; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>Solidea Sizing Assistant</h1>
+    <p>Conversational Flow Test</p>
+  </div>
+
+  <div id="setup" class="setup">
+    <label>Choose a product type:</label>
+    <select id="productType">
+      <option value="leggings">Leggings</option>
+      <option value="capris">Capris</option>
+      <option value="shorts">Shorts</option>
+      <option value="bike_shorts">Bike Shorts</option>
+      <option value="opaque_leggings">Opaque Leggings</option>
+      <option value="opaque_capris">Opaque Capris</option>
+      <option value="high_waist_legging">High Waist Legging</option>
+      <option value="tops_with_bra">Top with Built-in Bra</option>
+      <option value="bras">Bra</option>
+      <option value="braless_tops">Braless Top</option>
+      <option value="abdominal_band">Abdominal Band</option>
+      <option value="arm_sleeves">Arm Sleeves</option>
+      <option value="armbands">Armbands</option>
+      <option value="classic_arm_sleeves">Classic Arm Sleeves</option>
+      <option value="classic_armbands">Classic Armbands</option>
+      <option value="gauntlets">Gauntlets</option>
+      <option value="socks">Compression Socks</option>
+      <option value="calf_sleeves">Calf Sleeves</option>
+      <option value="thigh_highs">Thigh Highs</option>
+      <option value="mens_briefs">Men's Briefs</option>
+    </select>
+    <button class="btn-start" onclick="startConversation()">Start Sizing</button>
+  </div>
+
+  <div id="chatArea" style="display:none;">
+    <div class="chat" id="chat"></div>
+    <div id="inputArea" class="input-area">
+      <input type="text" id="userInput" placeholder="Type your answer..." onkeydown="if(event.key==='Enter')sendAnswer()">
+      <button class="btn-send" onclick="sendAnswer()">Send</button>
+      <button class="btn-skip" id="skipBtn" onclick="skipQuestion()" disabled>Skip</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let sessionId = null;
+let currentQuestion = null;
+
+function addMessage(text, type, extra) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'message ' + type;
+  let html = '<div class="bubble">' + text + '</div>';
+  if (extra) html += extra;
+  div.innerHTML = html;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addResult(result) {
+  const html = '<div class="result">' +
+    '<div class="confidence">' + result.confidence + '</div>' +
+    '<div class="size">' + result.recommended_size + '</div>' +
+    '</div>' +
+    '<div class="restart"><button onclick="resetAll()">Start Over</button></div>';
+  addMessage(html, 'assistant');
+  document.getElementById('inputArea').style.display = 'none';
+}
+
+function showProgress(progress) {
+  if (progress && progress.estimated_total > 0) {
+    return '<div class="progress">Question ' + progress.current + ' of ~' + progress.estimated_total + '</div>';
+  }
+  return '';
+}
+
+async function startConversation() {
+  const productType = document.getElementById('productType').value;
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('chatArea').style.display = 'block';
+
+  try {
+    const res = await fetch(API + '/api/v2/conversation/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_type: productType, channel: 'widget' })
+    });
+    const data = await res.json();
+    sessionId = data.session_id;
+    handleResponse(data);
+  } catch (err) {
+    addMessage('Error connecting to API: ' + err.message + '<br><br>Make sure the server is running:<br><code>uv run uvicorn app.main:app --reload --port 8000</code>', 'assistant');
+  }
+}
+
+function handleResponse(data) {
+  addMessage(data.message, 'assistant',
+    data.question ? showProgress(data.progress) : '');
+
+  if (data.status === 'complete' && data.result) {
+    addResult(data.result);
+    return;
+  }
+
+  if (data.question) {
+    currentQuestion = data.question;
+    addMessage(data.question.text, 'assistant',
+      '<div class="help-text">' + data.question.help_text + '</div>');
+    document.getElementById('skipBtn').disabled = !data.question.skip_allowed;
+    document.getElementById('userInput').placeholder = 'e.g. 5\'7", 140 lbs, 15 inches...';
+    document.getElementById('userInput').focus();
+  }
+}
+
+async function sendAnswer() {
+  const input = document.getElementById('userInput');
+  const value = input.value.trim();
+  if (!value) return;
+
+  addMessage(value, 'user');
+  input.value = '';
+
+  try {
+    const res = await fetch(API + '/api/v2/conversation/answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, answer: { value: value } })
+    });
+    const data = await res.json();
+    handleResponse(data);
+  } catch (err) {
+    addMessage('Error: ' + err.message, 'assistant');
+  }
+}
+
+async function skipQuestion() {
+  addMessage('(skipped)', 'user');
+  try {
+    const res = await fetch(API + '/api/v2/conversation/answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, answer: { skip: true } })
+    });
+    const data = await res.json();
+    handleResponse(data);
+  } catch (err) {
+    addMessage('Error: ' + err.message, 'assistant');
+  }
+}
+
+function resetAll() {
+  sessionId = null;
+  currentQuestion = null;
+  document.getElementById('chat').innerHTML = '';
+  document.getElementById('inputArea').style.display = 'flex';
+  document.getElementById('chatArea').style.display = 'none';
+  document.getElementById('setup').style.display = 'block';
+}
+</script>
+
+</body>
+</html>

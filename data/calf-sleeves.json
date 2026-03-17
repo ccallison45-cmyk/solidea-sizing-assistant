@@ -1,0 +1,30 @@
+[
+  {
+    "size": "S",
+    "measurements": {
+      "calf_circumference_cm": { "min": 30, "max": 34 },
+      "ankle_circumference_cm": { "min": 18, "max": 21 }
+    }
+  },
+  {
+    "size": "M",
+    "measurements": {
+      "calf_circumference_cm": { "min": 34, "max": 38 },
+      "ankle_circumference_cm": { "min": 21, "max": 24 }
+    }
+  },
+  {
+    "size": "L",
+    "measurements": {
+      "calf_circumference_cm": { "min": 38, "max": 42 },
+      "ankle_circumference_cm": { "min": 24, "max": 27 }
+    }
+  },
+  {
+    "size": "XL",
+    "measurements": {
+      "calf_circumference_cm": { "min": 42, "max": 46 },
+      "ankle_circumference_cm": { "min": 27, "max": 31 }
+    }
+  }
+]

@@ -21,110 +21,188 @@
 
   // --- Product type definitions ---
   var PRODUCT_TYPES = {
+    // Hands & Arm
     arm_sleeves: {
-      label: 'Arm Sleeves',
+      label: 'Active Arm Sleeve',
       fields: [
-        {
-          key: 'upper_arm_circumference_cm',
-          label: 'Upper Arm Circumference',
-          unit: 'cm',
-          help: 'Measure around the widest point of your bicep',
-        },
-        {
-          key: 'forearm_circumference_cm',
-          label: 'Forearm Circumference',
-          unit: 'cm',
-          help: 'Measure around the widest point of your forearm, about 1 inch below the elbow',
-        },
-        {
-          key: 'wrist_circumference_cm',
-          label: 'Wrist Circumference',
-          unit: 'cm',
-          help: 'Measure around your wrist, just above the bone',
-        },
+        { key: 'upper_arm_circumference_cm', label: 'Upper Arm Circumference', unit: 'cm', help: 'Measure around the widest point of your bicep (cF)' },
+        { key: 'forearm_circumference_cm', label: 'Forearm Circumference', unit: 'cm', help: 'Measure around the widest point of your forearm (cD)' },
+        { key: 'wrist_circumference_cm', label: 'Wrist Circumference', unit: 'cm', help: 'Measure around your wrist, just above the bone (cC)' },
       ],
     },
-    leggings: {
-      label: 'Leggings',
+    gauntlets: {
+      label: 'Active Gauntlet',
       fields: [
-        { key: 'height_cm', label: 'Height', unit: 'cm', help: 'Your total height' },
-        { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight' },
-        {
-          key: 'hip_circumference_cm',
-          label: 'Hip Circumference',
-          unit: 'cm',
-          help: 'Measure around the widest point of your hips',
-        },
-        {
-          key: 'waist_circumference_cm',
-          label: 'Waist Circumference',
-          unit: 'cm',
-          help: 'Measure around your natural waistline',
-        },
+        { key: 'palm_circumference_cm', label: 'Palm Circumference', unit: 'cm', help: 'Measure around the widest point of your palm (cA)' },
+      ],
+    },
+    armbands: {
+      label: 'Active Armbands',
+      fields: [
+        { key: 'upper_arm_circumference_cm', label: 'Upper Arm Circumference', unit: 'cm', help: 'Measure mid-upper arm, across bicep (cF)' },
+        { key: 'forearm_circumference_cm', label: 'Forearm Circumference', unit: 'cm', help: 'Measure mid-forearm (cD)' },
+        { key: 'wrist_circumference_cm', label: 'Wrist Circumference', unit: 'cm', help: 'Measure thinnest point of wrist, above bone (cC)' },
+      ],
+    },
+    // Breast & Trunk
+    bras: {
+      label: 'Active Compression Bra',
+      fields: [
+        { key: 'bust_circumference_cm', label: 'Bust Circumference', unit: 'cm', help: 'Measure around the fullest point of your bust (A)' },
+        { key: 'underbust_circumference_cm', label: 'Underbust Circumference', unit: 'cm', help: 'Measure snugly around your ribcage, just under your breasts (B)' },
+      ],
+    },
+    braless_tops: {
+      label: 'Active Braless Top',
+      fields: [
+        { key: 'bust_circumference_cm', label: 'Bust Circumference', unit: 'cm', help: 'Measure around your bust (cB). Consider sizing up in this garment.' },
+        { key: 'waist_circumference_cm', label: 'Waist Circumference', unit: 'cm', help: 'Measure around your natural waistline (cC)' },
+      ],
+    },
+    tops_with_bra: {
+      label: 'Active Top / Bodysuit with Built-In Bra',
+      fields: [
+        { key: 'bust_circumference_cm', label: 'Bust Circumference', unit: 'cm', help: 'Measure around your bust (cA). Consider sizing up in this garment.' },
+        { key: 'waist_circumference_cm', label: 'Waist Circumference', unit: 'cm', help: 'Measure around your natural waistline (cC)' },
+      ],
+    },
+    abdominal_band: {
+      label: 'Active Abdominal Band',
+      fields: [
+        { key: 'waist_circumference_cm', label: 'Waist Circumference', unit: 'cm', help: 'Measure across your belly button (cT)' },
+      ],
+    },
+    // Lower Body
+    leggings: {
+      label: 'Active Legging',
+      fields: [
+        { key: 'height_cm', label: 'Height', unit: 'cm', help: 'Your total height. Note: 5\'1" and under should purchase the capri instead.' },
+        { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight. If between sizes or carry more weight in bottom half, size up.' },
       ],
     },
     capris: {
-      label: 'Capris',
+      label: 'Active Capri',
+      fields: [
+        { key: 'height_cm', label: 'Height', unit: 'cm', help: 'Your total height' },
+        { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight. If between sizes or carry more weight in bottom half, size up.' },
+      ],
+    },
+    shorts: {
+      label: 'Active Short',
+      fields: [
+        { key: 'height_cm', label: 'Height', unit: 'cm', help: 'Your total height' },
+        { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight. If between sizes or carry more weight in bottom half, size up.' },
+      ],
+    },
+    bike_shorts: {
+      label: 'Active Bike Short',
+      fields: [
+        { key: 'height_cm', label: 'Height', unit: 'cm', help: 'Your total height. Falls just above the knee.' },
+        { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight. If between sizes or carry more weight in bottom half, size up.' },
+      ],
+    },
+    opaque_leggings: {
+      label: 'Active Opaque Legging',
+      fields: [
+        { key: 'height_cm', label: 'Height', unit: 'cm', help: 'Your total height' },
+        { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight. If carry more weight in bottom half, size up.' },
+      ],
+    },
+    opaque_capris: {
+      label: 'Active Opaque Capri',
+      fields: [
+        { key: 'height_cm', label: 'Height', unit: 'cm', help: 'Your total height' },
+        { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight. If carry more weight in bottom half, size up.' },
+      ],
+    },
+    high_waist_legging: {
+      label: 'High Waist Legging w/ Open Crotch',
       fields: [
         { key: 'height_cm', label: 'Height', unit: 'cm', help: 'Your total height' },
         { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight' },
-        {
-          key: 'hip_circumference_cm',
-          label: 'Hip Circumference',
-          unit: 'cm',
-          help: 'Measure around the widest point of your hips',
-        },
-        {
-          key: 'waist_circumference_cm',
-          label: 'Waist Circumference',
-          unit: 'cm',
-          help: 'Measure around your natural waistline',
-        },
       ],
     },
+    // Foot + Lower Leg
     socks: {
-      label: 'Knee-High Socks',
+      label: 'Knee-High / Mid-Calf / Ankle Socks',
       fields: [
-        {
-          key: 'calf_circumference_cm',
-          label: 'Calf Circumference',
-          unit: 'cm',
-          help: 'Measure around the widest part of your calf, about 2 inches below the knee',
-        },
-        {
-          key: 'ankle_circumference_cm',
-          label: 'Ankle Circumference',
-          unit: 'cm',
-          help: 'Measure around the narrowest point of your ankle, just above the bone',
-        },
+        { key: 'calf_circumference_cm', label: 'Calf Circumference', unit: 'cm', help: 'Measure widest part of calf, 2 inches below knee (cD). Knee-high only.' },
+        { key: 'ankle_circumference_cm', label: 'Ankle Circumference', unit: 'cm', help: 'Measure narrowest point above ankle bone (cB). Required for all sock types.' },
       ],
     },
-    bras: {
-      label: 'Bras',
+    calf_sleeves: {
+      label: 'Active Calf Sleeves',
       fields: [
-        {
-          key: 'bust_circumference_cm',
-          label: 'Bust Circumference',
-          unit: 'cm',
-          help: 'Measure around the fullest point of your bust',
-        },
-        {
-          key: 'underbust_circumference_cm',
-          label: 'Underbust Circumference',
-          unit: 'cm',
-          help: 'Measure snugly around your ribcage, just under your breasts',
-        },
+        { key: 'calf_circumference_cm', label: 'Calf Circumference', unit: 'cm', help: 'Measure widest part of calf, 2 inches below knee (cD)' },
+        { key: 'ankle_circumference_cm', label: 'Ankle Circumference', unit: 'cm', help: 'Measure narrowest point above ankle bone (cB)' },
+      ],
+    },
+    thigh_highs: {
+      label: 'Active Thigh High w/ Plantar Opening',
+      fields: [
+        { key: 'thigh_circumference_cm', label: 'Thigh Circumference', unit: 'cm', help: 'Measure at very top of thigh, at groin (cG)' },
+        { key: 'calf_circumference_cm', label: 'Calf Circumference', unit: 'cm', help: 'Measure widest part of calf, 2 inches below knee (cD)' },
+        { key: 'ankle_circumference_cm', label: 'Ankle Circumference', unit: 'cm', help: 'Measure narrowest point above ankle bone (cB)' },
+        { key: 'leg_length_cm', label: 'Leg Length', unit: 'cm', help: 'Measure from groin to floor (lG)' },
+      ],
+    },
+    // Men's
+    mens_briefs: {
+      label: "Men's Long / Short Brief",
+      fields: [
+        { key: 'hip_circumference_cm', label: 'Hip Circumference', unit: 'cm', help: 'Measure widest point of hips, across buttocks (cH)' },
+        { key: 'weight_kg', label: 'Weight', unit: 'kg', help: 'Your body weight' },
+      ],
+    },
+    // Classic Compression
+    classic_arm_sleeves: {
+      label: 'Classic Arm Sleeve 23/32mmHg',
+      fields: [
+        { key: 'upper_arm_circumference_cm', label: 'Upper Arm Circumference', unit: 'cm', help: 'Measure around the widest point of your bicep (cF)' },
+        { key: 'forearm_circumference_cm', label: 'Forearm Circumference', unit: 'cm', help: 'Measure around the widest point of your forearm (cD)' },
+        { key: 'wrist_circumference_cm', label: 'Wrist Circumference', unit: 'cm', help: 'Measure around your wrist, just above the bone (cC)' },
+      ],
+    },
+    classic_armbands: {
+      label: 'Classic Armband with Attached Gauntlet',
+      fields: [
+        { key: 'hand_circumference_cm', label: 'Hand Circumference', unit: 'cm', help: 'Measure middle of hand, above thumb (cA). Wearable on right or left arm.' },
+        { key: 'wrist_circumference_cm', label: 'Wrist Circumference', unit: 'cm', help: 'Measure thinnest point of wrist, above bone (cC)' },
+        { key: 'forearm_circumference_cm', label: 'Forearm Circumference', unit: 'cm', help: 'Measure mid-forearm (cD)' },
+        { key: 'upper_arm_circumference_cm', label: 'Upper Arm Circumference', unit: 'cm', help: 'Measure mid-upper arm, across bicep (cF)' },
       ],
     },
   };
 
   // --- Product type detection from Shopify page ---
+  // Order matters: more specific keywords must come before generic ones
   var DETECTION_KEYWORDS = {
+    // Classic must be checked before active (more specific match)
+    classic_armbands: ['classic compression armband', 'armband with attached gauntlet', 'classic-compression-armband'],
+    classic_arm_sleeves: ['classic compression arm sleeve', 'classic arm sleeve', 'classic-compression-arm-sleeve'],
+    // Hands & Arm
+    gauntlets: ['gauntlet'],
+    armbands: ['armband', 'arm band', 'arm-band'],
     arm_sleeves: ['arm sleeve', 'arm-sleeve', 'armsleeve'],
-    leggings: ['legging', 'leggings'],
-    capris: ['capri', 'capris'],
+    // Breast & Trunk
+    abdominal_band: ['abdominal band', 'abdominal-band'],
+    braless_tops: ['braless top', 'braless-top'],
+    tops_with_bra: ['tank top bodysuit', 'top bodysuit', 'tank top with built', 'top with built', 'built in bra', 'built-in-bra'],
+    bras: ['compression bra', ' bra', 'bra '],
+    // Lower Body — specific before generic
+    opaque_leggings: ['opaque legging', 'opaque-legging'],
+    opaque_capris: ['opaque capri', 'opaque-capri'],
+    high_waist_legging: ['high waist', 'high-waist', 'open crotch', 'body lipo'],
+    bike_shorts: ['bike short', 'bike-short'],
+    shorts: ['compression short', 'active compression short', 'active-compression-short'],
+    leggings: ['legging'],
+    capris: ['capri', 'corsaro'],
+    // Foot + Lower Leg
+    thigh_highs: ['thigh high', 'thigh-high', 'no-embol', 'plantar opening'],
+    calf_sleeves: ['calf sleeve', 'calf-sleeve'],
     socks: ['sock', 'knee-high', 'knee high', 'mid-calf', 'ankle sock'],
-    bras: ['bra ', 'bras', ' bra'],
+    // Men's
+    mens_briefs: ["men's", 'mens ', 'mens-', "men\\'s"],
   };
 
   function detectProductType() {

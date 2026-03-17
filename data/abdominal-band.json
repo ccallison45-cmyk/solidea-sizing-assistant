@@ -1,0 +1,32 @@
+[
+  {
+    "size": "S",
+    "measurements": {
+      "waist_circumference_cm": { "min": 54, "max": 64 }
+    }
+  },
+  {
+    "size": "M",
+    "measurements": {
+      "waist_circumference_cm": { "min": 65, "max": 87 }
+    }
+  },
+  {
+    "size": "ML",
+    "measurements": {
+      "waist_circumference_cm": { "min": 88, "max": 105 }
+    }
+  },
+  {
+    "size": "XL",
+    "measurements": {
+      "waist_circumference_cm": { "min": 106, "max": 140 }
+    }
+  },
+  {
+    "size": "XXL",
+    "measurements": {
+      "waist_circumference_cm": { "min": 141, "max": 175 }
+    }
+  }
+]

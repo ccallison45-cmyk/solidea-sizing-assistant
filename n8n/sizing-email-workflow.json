@@ -1,202 +1,1201 @@
 {
-  "name": "Solidea Sizing Email Assistant",
+  "name": "Solidea Sizing Email Assistant v2",
   "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-api-url",
+              "name": "apiBaseUrl",
+              "value": "https://web-production-762f7.up.railway.app",
+              "type": "string"
+            },
+            {
+              "id": "cfg-owner-email",
+              "name": "ownerEmail",
+              "value": "orders@solideaus.com",
+              "type": "string"
+            },
+            {
+              "id": "cfg-sheet-id",
+              "name": "sheetId",
+              "value": "1q5cE1gHEb2Obvwn-T_JzVFCwHKqLX81u8Aii3SpzUxk",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "757a9cb5-c064-4525-82c5-7f996f534c0e",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        112
+      ]
+    },
     {
       "parameters": {
         "pollTimes": {
           "item": [
-            { "mode": "everyMinute", "minute": 5 }
+            {
+              "mode": "everyX",
+              "unit": "minutes"
+            }
           ]
         },
-        "mailbox": "INBOX",
-        "options": {
-          "allowUnauthorizedCerts": false
+        "filters": {
+          "includeSpamTrash": false,
+          "readStatus": "unread"
         }
       },
-      "id": "imap-trigger",
-      "name": "Check Inbox",
-      "type": "n8n-nodes-base.imapEmailTrigger",
-      "typeVersion": 2,
-      "position": [240, 300],
+      "id": "205ea35e-44d6-4698-8132-ce34d47390e2",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        112
+      ],
       "credentials": {
-        "imap": { "id": "REPLACE_WITH_IMAP_CREDENTIAL_ID", "name": "Solidea Inbox IMAP" }
+        "gmailOAuth2": {
+          "id": "1IbYy4CHqzbNLbLV",
+          "name": "Gmail account 3"
+        }
       }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.id }}"
+      },
+      "id": "253561b4-54f0-4240-9fdd-c3152f24c8ce",
+      "name": "Mark as Read",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        112
+      ],
+      "webhookId": "9bb9574f-bd87-4100-9aeb-c980ba2ce223",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1IbYy4CHqzbNLbLV",
+          "name": "Gmail account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reply Chain Check: skip drafts, sent items, self-sends, and replies to our own emails\ntry {\n  const items = $('Gmail Trigger').all();\n  const results = [];\n\n  let ownerEmail = 'info@solideaus.com';\n  try {\n    ownerEmail = $('Config').first().json.ownerEmail.toLowerCase();\n  } catch (e) {}\n\n  for (const item of items) {\n    const labels = item.json.labels || item.json.labelIds || [];\n    const labelNames = labels.map(l =>\n      (typeof l === 'string' ? l : (l.name || l.id || '')).toUpperCase()\n    );\n\n    // Skip drafts\n    if (labelNames.includes('DRAFT')) continue;\n\n    // Skip sent-only emails (workflow-generated emails like error forwards)\n    if (labelNames.length > 0 && !labelNames.includes('INBOX')) continue;\n\n    const fromEmail = (item.json.from || item.json.From || '').toLowerCase();\n\n    // Self-send: only exact ownerEmail match\n    if (fromEmail.includes(ownerEmail)) continue;\n\n    // Strip quoted reply text to check only NEW content for our signatures\n    const textPlain = (item.json.textPlain || '');\n    const tpLines = textPlain.split('\\n');\n    let cutIdx = tpLines.length;\n    for (let li = 0; li < tpLines.length; li++) {\n      const ln = tpLines[li].trim();\n      if (/^On\\s+.{10,80}\\s+wrote:\\s*$/i.test(ln) || /^-{3,}\\s*Original Message/i.test(ln) || /^_{3,}$/.test(ln)) { cutIdx = li; break; }\n      if ((ln === '>' || ln.startsWith('> ')) && li > 0) { cutIdx = li; break; }\n    }\n    const checkText = tpLines.slice(0, cutIdx).join(' ').toLowerCase();\n\n    // Only match phrases exclusive to emails WE sent\n    const ourSignatures = [\n      'solidea sizing email assistant',\n      'd recommend a size',\n      'measurements we still need',\n      '888-841-8834 | solideaus.com'\n    ];\n    const isReplyToOurs = ourSignatures.some(sig => checkText.includes(sig));\n    if (isReplyToOurs) continue;\n\n    results.push(item);\n  }\n\n  return results.length > 0 ? results : [];\n} catch (error) {\n  return $input.all();\n}"
+      },
+      "id": "62188d3e-ae7c-4b70-9101-a2e8f581323c",
+      "name": "Reply Chain Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Smart Filter: determine if this email is a sizing inquiry\ntry {\n  const items = $input.all();\n  const results = [];\n\n  for (const item of items) {\n    const subject = (item.json.subject || '').toLowerCase();\n    const rawBody = (item.json.textPlain || item.json.snippet || '');\n    const combined = subject + ' ' + rawBody.toLowerCase();\n    const bLines = rawBody.split('\\n');\n    let bCut = bLines.length;\n    for (let li = 0; li < bLines.length; li++) {\n      const ln = bLines[li].trim();\n      if (/^On\\s+.{10,80}\\s+wrote:\\s*$/i.test(ln) || /^-{3,}\\s*Original Message/i.test(ln) || /^_{3,}$/.test(ln)) { bCut = li; break; }\n      if ((ln === '>' || ln.startsWith('> ')) && li > 0) { bCut = li; break; }\n    }\n    const newCombined = subject + ' ' + bLines.slice(0, bCut).join(' ').toLowerCase();\n\n    // Exclusion patterns - skip these emails entirely\n    const exclusions = [\n      'order #', 'order number', 'order confirmation',\n      'shipped', 'tracking', 'delivery',\n      'unsubscribe', 'opt out', 'opt-out',\n      'oversized', 'resize image', 'image size',\n      'invoice', 'receipt', 'payment confirmation',\n      'return label', 'refund processed',\n      '888-841-8834 | solideaus.com',\n      'solidea sizing assistant', 'your recommended size',\n      'measurements we still need'\n    ];\n\n    const isExcluded = exclusions.some(ex => newCombined.includes(ex));\n    if (isExcluded) continue;\n\n    // Sizing intent keywords\n    const sizingKeywords = [\n      'what size', 'which size', 'sizing', 'size recommendation',\n      'size guide', 'help with size', 'size chart',\n      'recommend a size', 'recommend size', 'right size',\n      'correct size', 'best size', 'size advice',\n      'need help with fit', 'help me find my size',\n      'not sure what size', 'unsure about size'\n    ];\n\n    // Measurement keywords\n    const measurementKeywords = [\n      'cm', 'centimeter', 'inches', 'inch',\n      'height', 'weight', 'bust', 'waist', 'hip',\n      'calf', 'ankle', 'wrist', 'bicep', 'underbust',\n      'arm length', 'circumference',\n      'feet', 'foot', 'lbs', 'pounds', 'kg', 'kilogram',\n      'measure', 'measurement'\n    ];\n\n    const fitKeywords = ['fit', 'fitting', 'compression level', 'too tight', 'too loose'];\n\n    const hasSizingIntent = sizingKeywords.some(kw => combined.includes(kw));\n    const hasMeasurement = measurementKeywords.some(kw => combined.includes(kw));\n    const hasFitInSubject = fitKeywords.some(kw => subject.includes(kw));\n\n    if (hasSizingIntent || hasMeasurement || hasFitInSubject) {\n      results.push(item);\n    }\n  }\n\n  return results.length > 0 ? results : [];\n} catch (error) {\n  return $input.all();\n}"
+      },
+      "id": "2c590692-b96c-47fc-ac59-175f93e0487b",
+      "name": "Smart Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Email: detect product type, extract measurements, convert units\n// Processes ALL input emails\ntry {\n  function decodeHtml(str) {\n    return str.replace(/&#39;/g,\"'\").replace(/&#x27;/g,\"'\").replace(/&apos;/g,\"'\")\n      .replace(/&#34;/g,'\"').replace(/&quot;/g,'\"').replace(/&amp;/g,'&')\n      .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#x2F;/g,'/')\n      .replace(/&#(\\d+);/g,(m,c)=>String.fromCharCode(parseInt(c,10)));\n  }\n\n  const productMap = [\n    {type:'arm_sleeves',label:'Arm Sleeves',patterns:[/\\barm\\s*sleeves?\\b/,/\\barm-sleeves?\\b/,/\\barmsleeves?\\b/,/\\barmband\\b/,/\\bgauntlet\\b/,/\\bcompression\\s+arm\\b/]},\n    {type:'capris',label:'Capris',patterns:[/\\bcapris?\\b/,/\\bopaque\\s+capri\\b/]},\n    {type:'leggings',label:'Leggings',patterns:[/\\bleggings?\\b/,/\\btights\\b/,/\\bpantyhose\\b/,/\\bbike\\s+shorts?\\b/,/\\bcompression\\s+shorts?\\b/,/\\bmen'?s?\\s+briefs?\\b/,/\\blong\\s+briefs?\\b/,/\\bshort\\s+briefs?\\b/,/\\bactive\\s+massage\\s+legging\\b/,/\\bopaque\\s+legging\\b/,/\\bhigh\\s+waist\\s+legging\\b/,/\\bmaternity\\s+legging\\b/]},\n    {type:'socks',label:'Compression Socks',patterns:[/\\bsocks?\\b/,/\\bknee[\\s-]?highs?\\b/,/\\bkneehighs?\\b/,/\\bankle\\s+socks?\\b/,/\\bmid[\\s-]?calf\\b/,/\\bcalf\\s+sleeves?\\b/,/\\bthigh\\s+highs?\\b/,/\\bcompression\\s+socks?\\b/,/\\bclosed\\s+toe\\s+knee\\b/]},\n    {type:'bras',label:'Bras',patterns:[/\\bbras?\\b/,/\\bbraless\\s+top\\b/,/\\btank\\s+top\\b/,/\\bcompression\\s+top\\b/,/\\bbodysuit\\b/,/\\bbuilt[\\s-]?in\\s+bra\\b/,/\\bsports\\s+bra\\b/,/\\bcompression\\s+bra\\b/]}\n  ];\n\n  const requiredMeasurements = {\n    arm_sleeves:['bicep_circumference_cm','wrist_circumference_cm','arm_length_cm'],\n    leggings:['height_cm','weight_kg','hip_circumference_cm','waist_circumference_cm'],\n    capris:['height_cm','weight_kg','hip_circumference_cm','waist_circumference_cm'],\n    socks:['calf_circumference_cm','ankle_circumference_cm'],\n    bras:['bust_circumference_cm','underbust_circumference_cm']\n  };\n\n  function feetInchesToCm(f,i){return((f*12)+(i||0))*2.54;}\n  function inToCm(v){return v*2.54;}\n  function lbsToKg(v){return v/2.2046;}\n  const numberWords={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12};\n  function parseNum(s){const k=s.trim().toLowerCase();if(numberWords[k]!==undefined)return numberWords[k];const n=parseFloat(k);return isNaN(n)?null:n;}\n\n  function extractValue(text,patterns){\n    for(const p of patterns){const m=text.match(p.regex);if(m){let v;\n      if(p.type==='feet_inches'){const f=parseNum(m[1]);const i=m[2]?parseNum(m[2]):0;if(f===null)continue;v=feetInchesToCm(f,i||0);}\n      else{v=parseNum(m[1]);if(v===null)continue;if(p.unit==='inches')v=inToCm(v);if(p.unit==='lbs')v=lbsToKg(v);}\n      return Math.round(v*100)/100;}}return null;}\n\n  const heightPatterns=[\n    {regex:/(\\d+)\\s*'\\s*(\\d+)?\\s*\"?/,type:'feet_inches'},\n    {regex:/(\\d+)\\s*(?:feet|foot|ft)\\.?\\s*(\\d+)?\\s*(?:inches|inch|in)?/i,type:'feet_inches'},\n    {regex:/(\\w+)\\s+foot\\s+(\\w+)/i,type:'feet_inches'},\n    {regex:/(\\w+)\\s+feet\\s+(\\w+)/i,type:'feet_inches'},\n    {regex:/height\\s*(?:is|:|=)?\\s*([\\d.]+)\\s*cm/i,unit:'cm'},\n    {regex:/([\\d.]+)\\s*cm\\s*(?:tall|height)/i,unit:'cm'},\n    {regex:/i(?:'m|\\s+am)\\s+([\\d.]+)\\s*cm/i,unit:'cm'},\n    {regex:/height\\s*(?:is|:|=)?\\s*([\\d.]+)\\s*(?:in|inches)/i,unit:'inches'},\n    {regex:/height\\s*(?:is|:|=)?\\s*([\\d.]+)/i,unit:'cm'}\n  ];\n  const weightPatterns=[\n    {regex:/(?:weight|weigh)\\s+(?:about|around|approximately)?\\s*([\\d.]+)\\s*(?:lbs?|pounds?)/i,unit:'lbs'},\n    {regex:/(?:weight|weigh)[:\\s]+([\\d.]+)\\s*(?:lbs?|pounds?)/i,unit:'lbs'},\n    {regex:/([\\d.]+)\\s*(?:lbs?|pounds?)(?:\\s|$|,|\\.|and)/i,unit:'lbs'},\n    {regex:/(?:weight|weigh)\\s+(?:about|around|approximately)?\\s*([\\d.]+)\\s*(?:kg|kilogram)/i,unit:'cm'},\n    {regex:/(?:weight|weigh)[:\\s]+([\\d.]+)\\s*(?:kg|kilogram)/i,unit:'cm'},\n    {regex:/([\\d.]+)\\s*(?:kg|kilogram)s?(?:\\s|$|,|\\.|and)/i,unit:'cm'},\n    {regex:/(?:weight|weigh)\\s+(?:about|around|approximately)?\\s*([\\d.]+)/i,unit:'lbs'}\n  ];\n\n  function circumPat(name){\n    const n=name.replace(/_/g,'[\\\\s-]?');\n    return [\n      {regex:new RegExp(n+'\\\\s+(?:is|are|of|about|around|approximately|measures?|measuring)?\\\\s*([\\\\d.]+)\\\\s*(?:in|inches|\\\\\")', 'i'),unit:'inches'},\n      {regex:new RegExp('([\\\\d.]+)\\\\s*(?:in|inches|inch)\\\\s*'+n,'i'),unit:'inches'},\n      {regex:new RegExp(n+'[:\\\\s]+([\\\\d.]+)\\\\s*(?:in|inches|\\\\\")', 'i'),unit:'inches'},\n      {regex:new RegExp(n+'\\\\s+(?:is|are|of|about|around|approximately|measures?|measuring)?\\\\s*([\\\\d.]+)\\\\s*cm','i'),unit:'cm'},\n      {regex:new RegExp('([\\\\d.]+)\\\\s*cm\\\\s*'+n,'i'),unit:'cm'},\n      {regex:new RegExp(n+'[:\\\\s]+([\\\\d.]+)\\\\s*cm','i'),unit:'cm'},\n      {regex:new RegExp('my\\\\s+'+n+'\\\\s+(?:is|are|measures?)\\\\s+(?:about|around|approximately)?\\\\s*([\\\\d.]+)\\\\s*(?:in|inches|\\\\\")', 'i'),unit:'inches'},\n      {regex:new RegExp('my\\\\s+'+n+'\\\\s+(?:is|are|measures?)\\\\s+(?:about|around|approximately)?\\\\s*([\\\\d.]+)\\\\s*cm','i'),unit:'cm'},\n      {regex:new RegExp('my\\\\s+'+n+'\\\\s+(?:is|are|measures?)\\\\s+(?:about|around|approximately)?\\\\s*([\\\\d.]+)','i'),unit:'cm'},\n      {regex:new RegExp(n+'\\\\s+(?:is|are|of|about|around|approximately|measures?|measuring)?\\\\s*([\\\\d.]+)','i'),unit:'cm'},\n      {regex:new RegExp(n+'[:\\\\s]+([\\\\d.]+)','i'),unit:'cm'}\n    ];\n  }\n\n  const bodyParts=[\n    {key:'bust_circumference_cm',names:['bust']},\n    {key:'underbust_circumference_cm',names:['underbust','under bust','under-bust']},\n    {key:'waist_circumference_cm',names:['waist']},\n    {key:'hip_circumference_cm',names:['hip','hips']},\n    {key:'calf_circumference_cm',names:['calf']},\n    {key:'ankle_circumference_cm',names:['ankle']},\n    {key:'bicep_circumference_cm',names:['bicep','upper arm','upper-arm']},\n    {key:'wrist_circumference_cm',names:['wrist']},\n    {key:'arm_length_cm',names:['arm length','arm-length']}\n  ];\n\n  function parseOne(item) {\n    let body = (item.json.textPlain || item.json.snippet || '');\n    const subject = (item.json.subject || '');\n    body = decodeHtml(body);\n    const bodyLower = body.toLowerCase();\n    const combined = subject.toLowerCase() + ' ' + bodyLower;\n\n    const detectedProducts = [];\n    for (const prod of productMap) {\n      for (const pat of prod.patterns) {\n        if (pat.test(combined)) { detectedProducts.push({type:prod.type,label:prod.label}); break; }\n      }\n    }\n\n    const measurements = {};\n    const hv = extractValue(bodyLower, heightPatterns); if (hv) measurements.height_cm = hv;\n    const wv = extractValue(bodyLower, weightPatterns); if (wv) measurements.weight_kg = wv;\n    for (const part of bodyParts) {\n      for (const name of part.names) {\n        const v = extractValue(bodyLower, circumPat(name));\n        if (v) { measurements[part.key] = v; break; }\n      }\n    }\n\n    const products = []; let hasProcessable = false; let hasMissing = false;\n    for (const prod of detectedProducts) {\n      const req = requiredMeasurements[prod.type] || [];\n      const pm = {}; const miss = [];\n      for (const r of req) { if (measurements[r] !== undefined) pm[r] = measurements[r]; else miss.push(r); }\n      const can = miss.length === 0;\n      if (can) hasProcessable = true;\n      if (miss.length > 0) hasMissing = true;\n      products.push({productType:prod.type,productLabel:prod.label,measurements:pm,missingMeasurements:miss,canProcess:can});\n    }\n\n    // Extract sender email robustly\n    const rawFrom = item.json.from || item.json.From || item.json.sender || item.json.senderAddress || '';\n    let senderEmail = rawFrom;\n    let senderName = '';\n    const angleMatch = rawFrom.match(/<([^>]+@[^>]+)>/);\n    if (angleMatch) { senderEmail = angleMatch[1].trim(); senderName = rawFrom.split('<')[0].replace(/[^a-zA-Z0-9 .'-]/g, '').trim(); }\n    if (!senderName) senderName = item.json.fromName || item.json.senderName || '';\n    if (!senderName && senderEmail.includes('@')) senderName = senderEmail.split('@')[0];\n    if (!senderName) senderName = 'Customer';\n\n    return {\n      fromEmail: senderEmail,\n      fromName: senderName,\n      subject, messageId: item.json.messageId || item.json.id || '',\n      threadId: item.json.threadId || '', originalBody: body,\n      products, allMeasurements: measurements,\n      hasProcessableProduct: hasProcessable,\n      hasMissingMeasurements: hasMissing && !hasProcessable,\n      hasNoProduct: detectedProducts.length === 0\n    };\n  }\n\n  return $input.all().map(item => {\n    try { return { json: parseOne(item) }; }\n    catch (e) { return { json: {\n      fromEmail:item.json.from||'',fromName:'',subject:item.json.subject||'',\n      messageId:'',threadId:'',originalBody:item.json.textPlain||'',\n      products:[],allMeasurements:{},hasProcessableProduct:false,\n      hasMissingMeasurements:false,hasNoProduct:true,parseError:e.message\n    }};}\n  });\n} catch (error) {\n  return $input.all().map(item => ({ json: {\n    fromEmail:item.json.from||'',fromName:'',subject:item.json.subject||'',\n    messageId:'',threadId:'',originalBody:'',products:[],allMeasurements:{},\n    hasProcessableProduct:false,hasMissingMeasurements:false,hasNoProduct:true,\n    parseError:error.message\n  }}));\n}"
+      },
+      "id": "5bab11c1-1e4b-45d1-b090-c25484ee56c4",
+      "name": "Parse Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        112
+      ]
     },
     {
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
           },
-          "combinator": "or",
+          "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{ $json.subject }}",
-              "rightValue": "size",
-              "operator": { "type": "string", "operation": "contains" }
-            },
-            {
-              "leftValue": "={{ $json.subject }}",
-              "rightValue": "sizing",
-              "operator": { "type": "string", "operation": "contains" }
-            },
-            {
-              "leftValue": "={{ $json.subject }}",
-              "rightValue": "measurement",
-              "operator": { "type": "string", "operation": "contains" }
-            },
-            {
-              "leftValue": "={{ $json.subject }}",
-              "rightValue": "fit",
-              "operator": { "type": "string", "operation": "contains" }
-            },
-            {
-              "leftValue": "={{ $json.textPlain }}",
-              "rightValue": "what size",
-              "operator": { "type": "string", "operation": "contains" }
-            },
-            {
-              "leftValue": "={{ $json.textPlain }}",
-              "rightValue": "which size",
-              "operator": { "type": "string", "operation": "contains" }
+              "id": "has-processable",
+              "leftValue": "={{ $json.hasProcessableProduct }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ]
-        }
+        },
+        "options": {}
       },
-      "id": "filter-sizing",
-      "name": "Is Sizing Inquiry?",
-      "type": "n8n-nodes-base.filter",
+      "id": "2cd8b088-5de3-4be2-b312-9bc7f5c45acf",
+      "name": "Has Processable Product?",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [460, 300]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse the email body for product type and measurements\nconst body = ($input.first().json.textPlain || '').toLowerCase();\nconst subject = ($input.first().json.subject || '').toLowerCase();\nconst combined = subject + ' ' + body;\n\n// Detect product type\nconst productKeywords = {\n  arm_sleeves: ['arm sleeve', 'arm-sleeve', 'armsleeve'],\n  leggings: ['legging', 'leggings'],\n  capris: ['capri', 'capris'],\n  socks: ['sock', 'knee-high', 'knee high'],\n  bras: ['bra ', 'bras', ' bra']\n};\n\nlet productType = null;\nfor (const [type, keywords] of Object.entries(productKeywords)) {\n  if (keywords.some(kw => combined.includes(kw))) {\n    productType = type;\n    break;\n  }\n}\n\n// Extract numbers from the email body\n// Look for patterns like: height 170cm, bust: 95 cm, weight 65kg, etc.\nconst measurementPatterns = {\n  height_cm: /height[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  weight_kg: /weight[:\\s]+([\\d.]+)\\s*(?:kg)?/i,\n  hip_circumference_cm: /hip[s]?[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  waist_circumference_cm: /waist[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  bust_circumference_cm: /bust[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  underbust_circumference_cm: /under[\\s-]?bust[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  upper_arm_circumference_cm: /(?:upper[\\s-]?arm|bicep)[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  forearm_circumference_cm: /forearm[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  wrist_circumference_cm: /wrist[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  calf_circumference_cm: /calf[:\\s]+([\\d.]+)\\s*(?:cm)?/i,\n  ankle_circumference_cm: /ankle[:\\s]+([\\d.]+)\\s*(?:cm)?/i\n};\n\nconst measurements = {};\nfor (const [key, pattern] of Object.entries(measurementPatterns)) {\n  const match = body.match(pattern);\n  if (match) {\n    measurements[key] = parseFloat(match[1]);\n  }\n}\n\nconst hasMeasurements = Object.keys(measurements).length > 0;\n\nreturn [{\n  json: {\n    fromEmail: $input.first().json.from,\n    subject: $input.first().json.subject,\n    originalBody: $input.first().json.textPlain,\n    productType: productType,\n    measurements: measurements,\n    hasMeasurements: hasMeasurements,\n    canProcess: productType !== null && hasMeasurements\n  }\n}];"
-      },
-      "id": "parse-email",
-      "name": "Parse Email",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        720,
+        112
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.canProcess }}",
-              "value2": true
+              "id": "has-missing",
+              "leftValue": "={{ $json.hasMissingMeasurements }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "can-process",
-      "name": "Can Process?",
+      "id": "b3235d39-05d0-43b1-8380-00869cb29e94",
+      "name": "Missing Measurements?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        944,
+        280
+      ]
     },
     {
       "parameters": {
-        "url": "=REPLACE_WITH_API_URL/api/v1/size-recommendation",
+        "jsCode": "// Prepare API request — one item per processable product, carries ALL data forward\ntry {\n  let apiBaseUrl = 'https://web-production-762f7.up.railway.app';\n  try { apiBaseUrl = $('Config').first().json.apiBaseUrl; } catch(e) {}\n\n  const output = [];\n  for (const item of $input.all()) {\n    const data = item.json;\n    const processable = (data.products || []).filter(p => p.canProcess);\n    for (const prod of processable) {\n      output.push({ json: {\n        ...data,\n        currentProduct: prod,\n        apiUrl: apiBaseUrl + '/api/v1/size-recommendation',\n        apiBody: { product_type: prod.productType, measurements: prod.measurements }\n      }});\n    }\n  }\n  return output;\n} catch (error) {\n  return $input.all().map(item => ({ json: { error: error.message, ...item.json } }));\n}"
+      },
+      "id": "093fd4e9-3bff-41c5-aa7e-d40b1691d698",
+      "name": "Prepare API Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.apiUrl }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ product_type: $json.productType, measurements: $json.measurements }) }}",
-        "options": {
-          "timeout": 10000
-        }
+        "jsonBody": "={{ JSON.stringify($json.apiBody) }}",
+        "options": {}
       },
-      "id": "call-api",
-      "name": "Get Size Recommendation",
+      "id": "b25fb943-e77e-41bc-b610-3abab55f55b4",
+      "name": "Call Sizing API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1120, 200]
+      "position": [
+        1168,
+        -80
+      ],
+      "continueOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "const apiResult = $input.first().json;\nconst emailData = $('Parse Email').first().json;\n\nconst productLabels = {\n  arm_sleeves: 'Arm Sleeves',\n  leggings: 'Leggings',\n  capris: 'Capris',\n  socks: 'Knee-High Socks',\n  bras: 'Bras'\n};\n\nconst productLabel = productLabels[emailData.productType] || emailData.productType;\n\nlet confidenceText = '';\nif (apiResult.confidence === 'exact') {\n  confidenceText = 'This is an exact match based on your measurements.';\n} else if (apiResult.confidence === 'interpolated') {\n  confidenceText = 'This is our closest recommendation. ' + (apiResult.notes || '');\n} else {\n  confidenceText = 'Your measurements fall outside our standard range. ' + (apiResult.notes || '');\n}\n\nreturn [{\n  json: {\n    toEmail: emailData.fromEmail,\n    subject: 'Your Solidea ' + productLabel + ' Size Recommendation',\n    recommendedSize: apiResult.recommended_size,\n    confidence: apiResult.confidence,\n    confidenceText: confidenceText,\n    notes: apiResult.notes || '',\n    productType: emailData.productType,\n    productLabel: productLabel\n  }\n}];"
+        "jsCode": "// Merge API response with original request data from Prepare API Request\n// (HTTP Request node replaces input data with response, so we recover originals here)\nconst responses = $input.all();\nconst originals = $('Prepare API Request').all();\nconst output = [];\n\nfor (let i = 0; i < originals.length; i++) {\n  const orig = originals[i].json;\n  const resp = responses[i] ? responses[i].json : {};\n\n  if (resp.recommended_size) {\n    output.push({ json: {\n      ...orig,\n      recommended_size: resp.recommended_size,\n      confidence: resp.confidence,\n      notes: resp.notes || '',\n      apiSuccess: true\n    }});\n  } else {\n    output.push({ json: {\n      ...orig,\n      apiSuccess: false,\n      apiError: resp.error || resp.message || 'API request failed'\n    }});\n  }\n}\n\nreturn output;"
       },
-      "id": "format-reply",
+      "id": "7e0e2908-8d96-43fb-8cc1-0b46ec538f66",
+      "name": "Merge API Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "api-success",
+              "leftValue": "={{ $json.apiSuccess }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "033f447a-5fd0-42b0-9882-bf24d184b526",
+      "name": "API Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.apiUrl }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.apiBody) }}",
+        "options": {}
+      },
+      "id": "4ae0610a-9b21-4e1c-8ead-7985cb4be55e",
+      "name": "Retry API Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1840,
+        -8
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge retry response with original data\n// Get the failed items from Merge API Response (they have all original data)\nconst responses = $input.all();\nconst allMerged = $('Merge API Response').all();\nconst failedItems = allMerged.filter(item => !item.json.apiSuccess);\nconst output = [];\n\nfor (let i = 0; i < responses.length; i++) {\n  const orig = failedItems[i] ? failedItems[i].json : {};\n  const resp = responses[i] ? responses[i].json : {};\n\n  if (resp.recommended_size) {\n    output.push({ json: {\n      ...orig,\n      recommended_size: resp.recommended_size,\n      confidence: resp.confidence,\n      notes: resp.notes || '',\n      apiSuccess: true\n    }});\n  } else {\n    output.push({ json: {\n      ...orig,\n      apiSuccess: false,\n      apiError: resp.error || resp.message || 'Retry failed'\n    }});\n  }\n}\n\nreturn output;"
+      },
+      "id": "87972270-308b-4c7c-b481-e053f3575b7a",
+      "name": "Merge Retry Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        -8
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "retry-success",
+              "leftValue": "={{ $json.apiSuccess }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8b8591c2-9b6f-41fd-bb78-4ab88ad2ec01",
+      "name": "Retry Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        -8
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format sizing recommendation reply — groups multiple products per email\ntry {\n  const items = $input.all();\n\n  // Group by messageId (same email may have multiple product recommendations)\n  const groups = {};\n  for (const item of items) {\n    const key = item.json.messageId || item.json.fromEmail || 'unknown';\n    if (!groups[key]) groups[key] = [];\n    groups[key].push(item.json);\n  }\n\n  const results = [];\n  for (const key of Object.keys(groups)) {\n    const emailItems = groups[key];\n    const first = emailItems[0];\n    const name = first.fromName || 'there';\n    const multi = emailItems.length > 1;\n\n    let recsHtml = '';\n    let recsText = '';\n    const allProducts = [];\n\n    for (const d of emailItems) {\n      const label = d.currentProduct.productLabel;\n      const size = d.recommended_size;\n      const conf = d.confidence || 'exact';\n      const notes = d.notes || '';\n\n      let rec = '';\n      if (multi) {\n        if (conf === 'exact') {\n          rec = 'For our ' + label + ', I\\u2019d recommend a <b>size ' + size + '</b> \\u2014 that should be a great fit!';\n        } else if (conf === 'interpolated') {\n          rec = 'For our ' + label + ', I\\u2019d suggest a <b>size ' + size + '</b>. You\\u2019re right between sizes, and ' + size + ' should give you the best balance of compression and comfort.';\n        } else {\n          rec = 'For our ' + label + ', I think a <b>size ' + size + '</b> would be your closest match.';\n        }\n      } else {\n        if (conf === 'exact') {\n          rec = 'Based on the measurements you shared, I\\u2019d recommend a <b>size ' + size + '</b> in our ' + label + '. That should be a great fit for you!';\n        } else if (conf === 'interpolated') {\n          rec = 'Based on your measurements, I\\u2019d suggest going with a <b>size ' + size + '</b> in our ' + label + '. You\\u2019re right between sizes, and ' + size + ' should give you the best balance of compression and comfort.';\n        } else {\n          rec = 'Your measurements are a little outside our standard chart for the ' + label + ', but I think a <b>size ' + size + '</b> would be your closest match. If you\\u2019d like to talk through the fit in more detail, feel free to give us a call \\u2014 I\\u2019m happy to help!';\n        }\n      }\n\n      recsHtml += '<p>' + rec + '</p>';\n      if (notes) recsHtml += '<p>' + notes + '</p>';\n      recsText += rec.replace(/<[^>]*>/g, '') + '\\n' + (notes ? notes + '\\n' : '') + '\\n';\n\n      allProducts.push({\n        productType: d.currentProduct.productType, productLabel: label,\n        recommendedSize: size, confidence: conf, notes, measurements: d.currentProduct.measurements\n      });\n    }\n\n    // Check for products with missing measurements (multi-product case)\n    const allProds = first.products || [];\n    const incomplete = allProds.filter(p => !p.canProcess && p.missingMeasurements && p.missingMeasurements.length > 0);\n    let missingHtml = '';\n    let missingText = '';\n    if (incomplete.length > 0) {\n      const mLbls = {'height_cm':'your height','weight_kg':'your weight','bust_circumference_cm':'bust circumference','underbust_circumference_cm':'underbust circumference','waist_circumference_cm':'waist circumference','hip_circumference_cm':'hip circumference','calf_circumference_cm':'calf circumference','ankle_circumference_cm':'ankle circumference','bicep_circumference_cm':'bicep circumference','wrist_circumference_cm':'wrist circumference','arm_length_cm':'arm length'};\n      for (const ip of incomplete) {\n        const ml = ip.missingMeasurements.map(m => mLbls[m] || m);\n        missingHtml += '<p>I\\u2019d also love to help with our ' + ip.productLabel + '! To get you a size, could you send me ' + ml.join(', ') + '?</p>';\n        missingText += 'I\\u2019d also love to help with our ' + ip.productLabel + '! To get you a size, could you send me ' + ml.join(', ') + '?\\n\\n';\n      }\n    }\n\n    const htmlBody = '<p>Hi ' + name + ',</p><p>Thanks so much for reaching out!</p>' +\n      (multi ? '<p>I looked up sizes for everything you asked about:</p>' : '') +\n      recsHtml + missingHtml +\n      '<p>One quick tip \\u2014 with compression garments, if you\\u2019re ever between sizes, going up a size usually feels more comfortable without losing any of the benefits.</p>' +\n      '<p>Let me know if you have any other questions \\u2014 happy to help!</p>' +\n      '<p>Best,<br>Solidea US<br>888-841-8834 | <a href=\"https://www.solideaus.com\">solideaus.com</a></p>';\n\n    const plainText = 'Hi ' + name + ',\\n\\nThanks so much for reaching out!\\n\\n' +\n      (multi ? 'I looked up sizes for everything you asked about:\\n\\n' : '') +\n      recsText + missingText +\n      'One quick tip \\u2014 with compression garments, if you\\u2019re ever between sizes, going up a size usually feels more comfortable without losing any of the benefits.\\n\\n' +\n      'Let me know if you have any other questions \\u2014 happy to help!\\n\\nBest,\\nSolidea US\\n888-841-8834 | solideaus.com';\n\n    results.push({ json: {\n      toEmail: first.fromEmail, subject: 'Re: ' + first.subject,\n      htmlBody, plainText,\n      recommendedSize: allProducts.map(p => p.productLabel + ': ' + p.recommendedSize).join(', '),\n      confidence: allProducts[0].confidence,\n      notes: allProducts.map(p => p.notes).filter(n => n).join('; '),\n      productType: allProducts.map(p => p.productType).join(', '),\n      productLabel: allProducts.map(p => p.productLabel).join(', '),\n      measurements: first.currentProduct.measurements,\n      products: allProducts,\n      threadId: first.threadId, messageId: first.messageId,\n      fromName: first.fromName, fromEmail: first.fromEmail\n    }});\n  }\n\n  return results;\n} catch (error) {\n  const d = ($input.first() || {json:{}}).json;\n  return [{ json: { error: error.message, toEmail: d.fromEmail||'', subject: 'Re: ' + (d.subject||'') }}];\n}"
+      },
+      "id": "c81e58b3-ca9b-49bd-a5e0-b7656bf7aa4c",
       "name": "Format Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 200]
+      "position": [
+        2512,
+        -176
+      ]
     },
     {
       "parameters": {
-        "fromEmail": "info@solideaus.com",
-        "toEmail": "={{ $json.toEmail }}",
+        "resource": "draft",
+        "sendTo": "={{ $json.toEmail }}",
         "subject": "={{ $json.subject }}",
         "emailType": "html",
-        "html": "",
-        "options": {}
+        "message": "={{ $json.htmlBody }}",
+        "options": {
+          "replyTo": "info@solideaus.com",
+          "threadId": "={{ $json.threadId }}"
+        }
       },
-      "id": "send-reply",
-      "name": "Send Auto-Reply",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [1560, 200],
+      "id": "3d392db1-b6ab-4eb1-91bf-930e7e22bdd9",
+      "name": "Create Draft for Review",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        2736,
+        -192
+      ],
+      "webhookId": "766df232-a0ea-44e6-ab0a-c7835e7216a0",
       "credentials": {
-        "smtp": { "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID", "name": "Solidea SMTP" }
+        "gmailOAuth2": {
+          "id": "1IbYy4CHqzbNLbLV",
+          "name": "Gmail account 3"
+        }
       }
     },
     {
       "parameters": {
-        "fromEmail": "n8n-bot@solideaus.com",
-        "toEmail": "info@solideaus.com",
-        "subject": "=⚠️ Sizing inquiry needs manual review: {{ $('Parse Email').first().json.subject }}",
-        "emailType": "text",
-        "text": "=The following sizing inquiry could not be auto-processed.\n\nReason: {{ !$('Parse Email').first().json.productType ? 'Could not detect product type' : 'Could not extract measurements' }}\n\nOriginal From: {{ $('Parse Email').first().json.fromEmail }}\nOriginal Subject: {{ $('Parse Email').first().json.subject }}\n\nDetected Product Type: {{ $('Parse Email').first().json.productType || 'None' }}\nDetected Measurements: {{ JSON.stringify($('Parse Email').first().json.measurements) }}\n\n--- Original Email Body ---\n{{ $('Parse Email').first().json.originalBody }}",
+        "jsCode": "// Log success — processes all items\ntry {\n  const fmtM=(m)=>{if(!m||Object.keys(m).length===0)return 'None';const N={height_cm:'Height',weight_kg:'Weight',bust_circumference_cm:'Bust',underbust_circumference_cm:'Underbust',waist_circumference_cm:'Waist',hip_circumference_cm:'Hip',calf_circumference_cm:'Calf',ankle_circumference_cm:'Ankle',bicep_circumference_cm:'Bicep',wrist_circumference_cm:'Wrist',arm_length_cm:'Arm length'};return Object.entries(m).map(([k,v])=>(N[k]||k)+': '+v+(k==='weight_kg'?' kg':' cm')).join(', ');};\n  let sheetId = 'REPLACE_WITH_GOOGLE_SHEET_ID';\n  try { sheetId = $('Config').first().json.sheetId; } catch(e) {}\n  const replies = $('Format Reply').all();\n\n  return $input.all().map((item, i) => {\n    const rd = (replies[i] || replies[0] || {json:{}}).json;\n    return { json: {\n      timestamp: new Date().toISOString(),\n      customerEmail: rd.fromEmail||'', customerName: rd.fromName||'',\n      productType: rd.productType||'',\n      measurementsDetected: fmtM(rd.measurements||{}),\n      recommendedSize: rd.recommendedSize||'', confidence: rd.confidence||'',\n      actionTaken: 'draft_created', notes: rd.notes||'', sheetId\n    }};\n  });\n} catch (error) {\n  let sheetId = 'REPLACE_WITH_GOOGLE_SHEET_ID';\n  try { sheetId = $('Config').first().json.sheetId; } catch(e) {}\n  return [{ json: {\n    timestamp: new Date().toISOString(), customerEmail:'error', customerName:'',\n    productType:'', measurementsDetected:'', recommendedSize:'', confidence:'',\n    actionTaken:'log_error: '+error.message, notes:error.message, sheetId\n  }}];\n}"
+      },
+      "id": "7633d61e-81f9-4ab1-ae03-0f5fba7d6597",
+      "name": "Log Success Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2960,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sizing Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.timestamp }}",
+            "Customer Email": "={{ $json.customerEmail }}",
+            "Customer Name": "={{ $json.customerName }}",
+            "Product Type": "={{ $json.productType }}",
+            "Measurements": "={{ $json.measurementsDetected }}",
+            "Recommended Size": "={{ $json.recommendedSize }}",
+            "Confidence": "={{ $json.confidence }}",
+            "Action": "={{ $json.actionTaken }}",
+            "Notes": "={{ $json.notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Email",
+              "displayName": "Customer Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product Type",
+              "displayName": "Product Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Measurements",
+              "displayName": "Measurements",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommended Size",
+              "displayName": "Recommended Size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "forward-to-owner",
-      "name": "Forward to Owner",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [1120, 420],
+      "id": "063578cd-5400-4202-a26e-7e9989af1e96",
+      "name": "Log to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        3184,
+        -176
+      ],
       "credentials": {
-        "smtp": { "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID", "name": "Solidea SMTP" }
+        "googleSheetsOAuth2Api": {
+          "id": "nsuEsSwZRJOLD3uI",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format follow-up email — processes all items\ntry {\n  const mLabels = {\n    'height_cm':'Height','weight_kg':'Weight',\n    'bust_circumference_cm':'Bust circumference (around the fullest part)',\n    'underbust_circumference_cm':'Underbust circumference (snugly right below the bust)',\n    'waist_circumference_cm':'Waist circumference (around the narrowest part)',\n    'hip_circumference_cm':'Hip circumference (around the widest part)',\n    'calf_circumference_cm':'Calf circumference (around the widest part of the calf)',\n    'ankle_circumference_cm':'Ankle circumference (just above the ankle bone)',\n    'bicep_circumference_cm':'Bicep circumference (around the widest part of the upper arm)',\n    'wrist_circumference_cm':'Wrist circumference (around the wrist bone)',\n    'arm_length_cm':'Arm length (from the top of the shoulder to the wrist)'\n  };\n\n  return $input.all().map(item => {\n    const pd = item.json;\n    const pwm = (pd.products||[]).find(p => p.missingMeasurements && p.missingMeasurements.length > 0);\n    if (!pwm) return { json: { error: 'No product with missing measurements', ...pd } };\n\n    const label = pwm.productLabel;\n    const missing = pwm.missingMeasurements;\n    const labels = missing.map(m => mLabels[m] || m);\n    const listHtml = labels.map(l => '<li>' + l + '</li>').join('');\n    const listText = labels.map(l => '  \\u2022 ' + l).join('\\n');\n    const name = pd.fromName || 'there';\n\n    const htmlBody = '<p>Hi ' + name + ',</p>' +\n      '<p>Thanks for your interest in our ' + label + '! I\\u2019d love to help you find the perfect size.</p>' +\n      '<p>To give you an accurate recommendation, could you send me a couple more measurements?</p>' +\n      '<ul>' + listHtml + '</ul>' +\n      '<p>Centimeters or inches are both totally fine \\u2014 whatever you have handy. Just reply to this email and I\\u2019ll get right back to you with a recommendation!</p>' +\n      '<p>Best,<br>Solidea US<br>888-841-8834 | <a href=\"https://www.solideaus.com\">solideaus.com</a></p>';\n\n    const plainText = 'Hi ' + name + ',\\n\\nThanks for your interest in our ' + label + '! I\\u2019d love to help you find the perfect size.\\n\\n' +\n      'To give you an accurate recommendation, could you send me a couple more measurements?\\n\\n' + listText + '\\n\\n' +\n      'Centimeters or inches are both totally fine \\u2014 whatever you have handy. Just reply to this email and I\\u2019ll get right back to you with a recommendation!\\n\\n' +\n      'Best,\\nSolidea US\\n888-841-8834 | solideaus.com';\n\n    return { json: {\n      toEmail: pd.fromEmail, fromName: pd.fromName,\n      subject: 'Re: ' + pd.subject, htmlBody, plainText,\n      productType: pwm.productType, productLabel: label,\n      missingMeasurements: missing, detectedMeasurements: pwm.measurements,\n      threadId: pd.threadId, messageId: pd.messageId\n    }};\n  });\n} catch (error) {\n  return [{ json: { error: error.message, toEmail: ($input.first()||{json:{}}).json.fromEmail||'' }}];\n}"
+      },
+      "id": "d80dd660-6186-4e94-8da3-8a00247990a8",
+      "name": "Format Follow-up Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        184
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "sendTo": "={{ $json.toEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {
+          "replyTo": "info@solideaus.com",
+          "threadId": "={{ $json.threadId }}"
+        }
+      },
+      "id": "b44a3352-66eb-45b0-bf56-43115af74df6",
+      "name": "Send Follow-up Draft",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        184
+      ],
+      "webhookId": "925be255-cb24-4d0b-b2ef-4497b7273f79",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1IbYy4CHqzbNLbLV",
+          "name": "Gmail account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log follow-up — processes all items\ntry {\n  const fmtM=(m)=>{if(!m||Object.keys(m).length===0)return 'None';const N={height_cm:'Height',weight_kg:'Weight',bust_circumference_cm:'Bust',underbust_circumference_cm:'Underbust',waist_circumference_cm:'Waist',hip_circumference_cm:'Hip',calf_circumference_cm:'Calf',ankle_circumference_cm:'Ankle',bicep_circumference_cm:'Bicep',wrist_circumference_cm:'Wrist',arm_length_cm:'Arm length'};return Object.entries(m).map(([k,v])=>(N[k]||k)+': '+v+(k==='weight_kg'?' kg':' cm')).join(', ');};\n  let sheetId = 'REPLACE_WITH_GOOGLE_SHEET_ID';\n  try { sheetId = $('Config').first().json.sheetId; } catch(e) {}\n  const fus = $('Format Follow-up Email').all();\n\n  return $input.all().map((item, i) => {\n    const fu = (fus[i] || fus[0] || {json:{}}).json;\n    return { json: {\n      timestamp: new Date().toISOString(),\n      customerEmail: fu.toEmail||'', customerName: fu.fromName||'',\n      productType: fu.productType||'',\n      measurementsDetected: fmtM(fu.detectedMeasurements||{}),\n      recommendedSize:'', confidence:'',\n      actionTaken:'follow_up_draft_created',\n      notes:'Missing: '+(fu.missingMeasurements||[]).join(', '), sheetId\n    }};\n  });\n} catch (error) {\n  let sheetId = 'REPLACE_WITH_GOOGLE_SHEET_ID';\n  try { sheetId = $('Config').first().json.sheetId; } catch(e) {}\n  return [{ json: {\n    timestamp: new Date().toISOString(), customerEmail:'error', customerName:'',\n    productType:'', measurementsDetected:'', recommendedSize:'', confidence:'',\n    actionTaken:'log_error: '+error.message, notes:error.message, sheetId\n  }}];\n}"
+      },
+      "id": "ddf68c55-7635-4896-a701-0073168b2233",
+      "name": "Log Follow-up Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        184
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sizing Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.timestamp }}",
+            "Customer Email": "={{ $json.customerEmail }}",
+            "Customer Name": "={{ $json.customerName }}",
+            "Product Type": "={{ $json.productType }}",
+            "Measurements": "={{ $json.measurementsDetected }}",
+            "Recommended Size": "={{ $json.recommendedSize }}",
+            "Confidence": "={{ $json.confidence }}",
+            "Action": "={{ $json.actionTaken }}",
+            "Notes": "={{ $json.notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Email",
+              "displayName": "Customer Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product Type",
+              "displayName": "Product Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Measurements",
+              "displayName": "Measurements",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommended Size",
+              "displayName": "Recommended Size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c1651d41-9789-45ba-a9e1-ec6f13a75f3e",
+      "name": "Log Follow-up to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1840,
+        184
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nsuEsSwZRJOLD3uI",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Config').first().json.ownerEmail ?? 'info@solideaus.com' }}",
+        "subject": "=Manual Review Needed: {{ $json.subject }}",
+        "message": "=<!DOCTYPE html><html><body style=\"font-family:Arial,sans-serif;padding:20px;\"><h2 style=\"color:#c0392b;\">Manual Review Needed</h2><p>The following sizing inquiry could not be auto-processed because no product type was detected.</p><table style=\"border-collapse:collapse;width:100%;margin:16px 0;\"><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;width:140px;\">From</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ $json.fromEmail }}</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;\">Name</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ $json.fromName }}</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;\">Subject</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ $json.subject }}</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;\">Measurements Found</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ Object.keys($json.allMeasurements || {}).length > 0 ? Object.entries($json.allMeasurements).map(([k,v]) => k.replace(/_cm$/, '').replace(/_kg$/, '').replace(/_/g, ' ') + ': ' + v).join(', ') : 'None detected' }}</td></tr></table><h3>Original Email</h3><div style=\"background:#f5f5f5;padding:16px;border-left:3px solid #c9a96e;white-space:pre-wrap;\">{{ $json.originalBody }}</div><p style=\"margin-top:16px;font-size:13px;color:#999;\">This email was forwarded by the Solidea Sizing Email Assistant because it could not determine the product type.</p></body></html>",
+        "options": {}
+      },
+      "id": "10b00ce8-1081-4392-bc69-7aa82ecac2ab",
+      "name": "Forward to Owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        376
+      ],
+      "webhookId": "71303c84-9a70-4e78-a8c6-5a5f66897a76",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1IbYy4CHqzbNLbLV",
+          "name": "Gmail account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log forward — processes all items\ntry {\n  const fmtM=(m)=>{if(!m||Object.keys(m).length===0)return 'None';const N={height_cm:'Height',weight_kg:'Weight',bust_circumference_cm:'Bust',underbust_circumference_cm:'Underbust',waist_circumference_cm:'Waist',hip_circumference_cm:'Hip',calf_circumference_cm:'Calf',ankle_circumference_cm:'Ankle',bicep_circumference_cm:'Bicep',wrist_circumference_cm:'Wrist',arm_length_cm:'Arm length'};return Object.entries(m).map(([k,v])=>(N[k]||k)+': '+v+(k==='weight_kg'?' kg':' cm')).join(', ');};\n  let sheetId = 'REPLACE_WITH_GOOGLE_SHEET_ID';\n  try { sheetId = $('Config').first().json.sheetId; } catch(e) {}\n  const parseItems = $('Parse Email').all();\n\n  return $input.all().map((item, i) => {\n    const pd = (parseItems[i] || parseItems[0] || {json:{}}).json;\n    return { json: {\n      timestamp: new Date().toISOString(),\n      customerEmail: pd.fromEmail||'', customerName: pd.fromName||'',\n      productType:'',\n      measurementsDetected: fmtM(pd.allMeasurements||{}),\n      recommendedSize:'', confidence:'',\n      actionTaken:'forwarded_to_owner',\n      notes: pd.parseError ? 'Parse error: '+pd.parseError : 'No product type detected',\n      sheetId\n    }};\n  });\n} catch (error) {\n  let sheetId = 'REPLACE_WITH_GOOGLE_SHEET_ID';\n  try { sheetId = $('Config').first().json.sheetId; } catch(e) {}\n  return [{ json: {\n    timestamp: new Date().toISOString(), customerEmail:'error', customerName:'',\n    productType:'', measurementsDetected:'', recommendedSize:'', confidence:'',\n    actionTaken:'log_error: '+error.message, notes:error.message, sheetId\n  }}];\n}"
+      },
+      "id": "2c61a6ac-be38-49e0-ac37-8f6ca8cef4db",
+      "name": "Log Forward Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        376
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sizing Log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.timestamp }}",
+            "Customer Email": "={{ $json.customerEmail }}",
+            "Customer Name": "={{ $json.customerName }}",
+            "Product Type": "={{ $json.productType }}",
+            "Measurements": "={{ $json.measurementsDetected }}",
+            "Recommended Size": "={{ $json.recommendedSize }}",
+            "Confidence": "={{ $json.confidence }}",
+            "Action": "={{ $json.actionTaken }}",
+            "Notes": "={{ $json.notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Email",
+              "displayName": "Customer Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer Name",
+              "displayName": "Customer Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product Type",
+              "displayName": "Product Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Measurements",
+              "displayName": "Measurements",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommended Size",
+              "displayName": "Recommended Size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9d57fa5c-085a-49c3-90cd-0f9562038d39",
+      "name": "Log Forward to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        1616,
+        376
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nsuEsSwZRJOLD3uI",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Config').first().json.ownerEmail ?? 'info@solideaus.com' }}",
+        "subject": "=API Error - Sizing Request Failed: {{ $json.subject }}",
+        "message": "=<!DOCTYPE html><html><body style=\"font-family:Arial,sans-serif;padding:20px;\"><h2 style=\"color:#c0392b;\">Sizing API Error</h2><p>The sizing API failed after two attempts. Please process this sizing request manually.</p><table style=\"border-collapse:collapse;width:100%;margin:16px 0;\"><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;width:140px;\">From</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ $json.fromEmail }}</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;\">Subject</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ $json.subject }}</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;\">Product Type</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ $json.currentProduct.productLabel }}</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;\">Measurements</td><td style=\"padding:8px;border:1px solid #ddd;\">{{ JSON.stringify($json.currentProduct.measurements) }}</td></tr><tr><td style=\"padding:8px;border:1px solid #ddd;font-weight:bold;background:#f9f9f9;\">Error</td><td style=\"padding:8px;border:1px solid #ddd;color:#c0392b;\">{{ $json.apiError }}</td></tr></table><h3>Original Email</h3><div style=\"background:#f5f5f5;padding:16px;border-left:3px solid #c9a96e;white-space:pre-wrap;\">{{ $json.originalBody }}</div><p style=\"margin-top:16px;font-size:13px;color:#999;\">Forwarded by the Solidea Sizing Email Assistant.</p></body></html>",
+        "options": {}
+      },
+      "id": "3a9695df-5072-457c-8ff1-fa76a0b6535f",
+      "name": "Forward API Error to Owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        40
+      ],
+      "webhookId": "8495b7d6-c26f-4fea-86c0-2eb93bca31d5",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1IbYy4CHqzbNLbLV",
+          "name": "Gmail account 3"
+        }
       }
     }
   ],
+  "pinData": {},
   "connections": {
-    "Check Inbox": {
+    "Gmail Trigger": {
       "main": [
-        [{ "node": "Is Sizing Inquiry?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Mark as Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Is Sizing Inquiry?": {
+    "Mark as Read": {
       "main": [
-        [{ "node": "Parse Email", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Reply Chain Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply Chain Check": {
+      "main": [
+        [
+          {
+            "node": "Smart Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Smart Filter": {
+      "main": [
+        [
+          {
+            "node": "Parse Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Parse Email": {
       "main": [
-        [{ "node": "Can Process?", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Has Processable Product?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Can Process?": {
+    "Has Processable Product?": {
       "main": [
-        [{ "node": "Get Size Recommendation", "type": "main", "index": 0 }],
-        [{ "node": "Forward to Owner", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Prepare API Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Missing Measurements?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Get Size Recommendation": {
+    "Missing Measurements?": {
       "main": [
-        [{ "node": "Format Reply", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Format Follow-up Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Forward to Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare API Request": {
+      "main": [
+        [
+          {
+            "node": "Call Sizing API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Sizing API": {
+      "main": [
+        [
+          {
+            "node": "Merge API Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge API Response": {
+      "main": [
+        [
+          {
+            "node": "API Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Success?": {
+      "main": [
+        [
+          {
+            "node": "Format Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Retry API Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Format Reply": {
       "main": [
-        [{ "node": "Send Auto-Reply", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Create Draft for Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Draft for Review": {
+      "main": [
+        [
+          {
+            "node": "Log Success Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success Config": {
+      "main": [
+        [
+          {
+            "node": "Log to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry API Call": {
+      "main": [
+        [
+          {
+            "node": "Merge Retry Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Retry Response": {
+      "main": [
+        [
+          {
+            "node": "Retry Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Success?": {
+      "main": [
+        [
+          {
+            "node": "Format Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Forward API Error to Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Follow-up Email": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-up Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-up Draft": {
+      "main": [
+        [
+          {
+            "node": "Log Follow-up Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Follow-up Config": {
+      "main": [
+        [
+          {
+            "node": "Log Follow-up to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Forward to Owner": {
+      "main": [
+        [
+          {
+            "node": "Log Forward Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Forward Config": {
+      "main": [
+        [
+          {
+            "node": "Log Forward to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
+  "versionId": "aa0b7d70-cb56-481c-9f8a-e65fbabc994f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3284a750e976b52fc6010bba1260df463b1fb90f5ff405178d16b0179f7756d6"
+  },
+  "id": "wqDDeKUnMD6FPcs9",
   "tags": [
-    { "name": "sizing-assistant" },
-    { "name": "email-automation" }
+    {
+      "name": "email-automation",
+      "id": "3rNK7DhG3Oh8xvwq",
+      "updatedAt": "2026-02-19T22:50:08.493Z",
+      "createdAt": "2026-02-19T22:50:08.493Z"
+    },
+    {
+      "name": "sizing-assistant",
+      "id": "UaSKnJxgSVxQGA0g",
+      "updatedAt": "2026-02-19T22:50:08.499Z",
+      "createdAt": "2026-02-19T22:50:08.499Z"
+    },
+    {
+      "name": "v2-renovated",
+      "id": "rpPofI7HS9tv2Fe8",
+      "updatedAt": "2026-02-20T01:15:09.885Z",
+      "createdAt": "2026-02-20T01:15:09.885Z"
+    }
   ]
 }

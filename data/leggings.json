@@ -11,8 +11,8 @@
   {
     "size": "M",
     "measurements": {
-      "height_cm": { "min": 152, "max": 160 },
-      "weight_kg": { "min": 50, "max": 61 },
+      "height_cm": { "min": 155, "max": 160 },
+      "weight_kg": { "min": 45, "max": 61 },
       "hip_circumference_cm": { "min": 87, "max": 95 },
       "waist_circumference_cm": { "min": 64, "max": 70 }
     }
@@ -20,8 +20,8 @@
   {
     "size": "ML",
     "measurements": {
-      "height_cm": { "min": 160, "max": 170 },
-      "weight_kg": { "min": 54, "max": 70 },
+      "height_cm": { "min": 160, "max": 165 },
+      "weight_kg": { "min": 54, "max": 73 },
       "hip_circumference_cm": { "min": 89, "max": 98 },
       "waist_circumference_cm": { "min": 67, "max": 73 }
     }
@@ -29,7 +29,7 @@
   {
     "size": "L",
     "measurements": {
-      "height_cm": { "min": 165, "max": 175 },
+      "height_cm": { "min": 165, "max": 173 },
       "weight_kg": { "min": 66, "max": 88 },
       "hip_circumference_cm": { "min": 92, "max": 100 },
       "waist_circumference_cm": { "min": 70, "max": 77 }
@@ -38,7 +38,7 @@
   {
     "size": "XL",
     "measurements": {
-      "height_cm": { "min": 170, "max": 180 },
+      "height_cm": { "min": 170, "max": 175 },
       "weight_kg": { "min": 79, "max": 98 },
       "hip_circumference_cm": { "min": 97, "max": 105 },
       "waist_circumference_cm": { "min": 77, "max": 87 }
@@ -57,7 +57,7 @@
     "size": "XXXL",
     "measurements": {
       "height_cm": { "min": 180, "max": 183 },
-      "weight_kg": { "min": 100, "max": 111 },
+      "weight_kg": { "min": 102, "max": 111 },
       "hip_circumference_cm": { "min": 108, "max": 135 },
       "waist_circumference_cm": { "min": 97, "max": 120 }
     }

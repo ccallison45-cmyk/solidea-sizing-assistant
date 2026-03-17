@@ -1,0 +1,44 @@
+[
+  {
+    "size": "S",
+    "measurements": {
+      "height_cm": { "min": 152, "max": 155 },
+      "weight_kg": { "min": 41, "max": 50 }
+    }
+  },
+  {
+    "size": "M",
+    "measurements": {
+      "height_cm": { "min": 152, "max": 160 },
+      "weight_kg": { "min": 50, "max": 61 }
+    }
+  },
+  {
+    "size": "ML",
+    "measurements": {
+      "height_cm": { "min": 160, "max": 170 },
+      "weight_kg": { "min": 54, "max": 70 }
+    }
+  },
+  {
+    "size": "L",
+    "measurements": {
+      "height_cm": { "min": 165, "max": 175 },
+      "weight_kg": { "min": 66, "max": 84 }
+    }
+  },
+  {
+    "size": "XL",
+    "measurements": {
+      "height_cm": { "min": 170, "max": 178 },
+      "weight_kg": { "min": 77, "max": 95 }
+    }
+  },
+  {
+    "size": "XXL",
+    "measurements": {
+      "height_cm": { "min": 173, "max": 183 },
+      "weight_kg": { "min": 91, "max": 100 }
+    }
+  }
+]

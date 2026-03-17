@@ -1,0 +1,44 @@
+[
+  {
+    "size": "XS",
+    "measurements": {
+      "bust_circumference_cm": { "min": 74, "max": 88 },
+      "waist_circumference_cm": { "min": 56, "max": 70 }
+    }
+  },
+  {
+    "size": "S",
+    "measurements": {
+      "bust_circumference_cm": { "min": 80, "max": 94 },
+      "waist_circumference_cm": { "min": 62, "max": 76 }
+    }
+  },
+  {
+    "size": "M",
+    "measurements": {
+      "bust_circumference_cm": { "min": 86, "max": 105 },
+      "waist_circumference_cm": { "min": 68, "max": 82 }
+    }
+  },
+  {
+    "size": "L",
+    "measurements": {
+      "bust_circumference_cm": { "min": 92, "max": 112 },
+      "waist_circumference_cm": { "min": 74, "max": 90 }
+    }
+  },
+  {
+    "size": "XL",
+    "measurements": {
+      "bust_circumference_cm": { "min": 100, "max": 124 },
+      "waist_circumference_cm": { "min": 82, "max": 100 }
+    }
+  },
+  {
+    "size": "XXL",
+    "measurements": {
+      "bust_circumference_cm": { "min": 108, "max": 142 },
+      "waist_circumference_cm": { "min": 90, "max": 114 }
+    }
+  }
+]

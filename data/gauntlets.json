@@ -1,0 +1,26 @@
+[
+  {
+    "size": "S",
+    "measurements": {
+      "palm_circumference_cm": { "min": 15, "max": 18 }
+    }
+  },
+  {
+    "size": "M",
+    "measurements": {
+      "palm_circumference_cm": { "min": 18, "max": 21 }
+    }
+  },
+  {
+    "size": "L",
+    "measurements": {
+      "palm_circumference_cm": { "min": 21, "max": 24 }
+    }
+  },
+  {
+    "size": "XL",
+    "measurements": {
+      "palm_circumference_cm": { "min": 24, "max": 28 }
+    }
+  }
+]

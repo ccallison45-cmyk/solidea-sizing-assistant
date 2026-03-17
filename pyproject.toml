@@ -27,3 +27,7 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# flows.py contains long user-facing text strings that are intentionally readable
+"app/conversation/flows.py" = ["E501"]

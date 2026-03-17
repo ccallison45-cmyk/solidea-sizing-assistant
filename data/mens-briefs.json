@@ -1,0 +1,37 @@
+[
+  {
+    "size": "S",
+    "measurements": {
+      "hip_circumference_cm": { "min": 85, "max": 93 },
+      "weight_kg": { "min": 48, "max": 62 }
+    }
+  },
+  {
+    "size": "M",
+    "measurements": {
+      "hip_circumference_cm": { "min": 90, "max": 98 },
+      "weight_kg": { "min": 62, "max": 72 }
+    }
+  },
+  {
+    "size": "L",
+    "measurements": {
+      "hip_circumference_cm": { "min": 92, "max": 101 },
+      "weight_kg": { "min": 72, "max": 82 }
+    }
+  },
+  {
+    "size": "XL",
+    "measurements": {
+      "hip_circumference_cm": { "min": 95, "max": 103 },
+      "weight_kg": { "min": 82, "max": 92 }
+    }
+  },
+  {
+    "size": "XXL",
+    "measurements": {
+      "hip_circumference_cm": { "min": 100, "max": 110 },
+      "weight_kg": { "min": 92, "max": 115 }
+    }
+  }
+]

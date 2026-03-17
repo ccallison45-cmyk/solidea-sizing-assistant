@@ -1,0 +1,38 @@
+[
+  {
+    "size": "S",
+    "measurements": {
+      "hand_circumference_cm": { "min": 16, "max": 20 },
+      "wrist_circumference_cm": { "min": 13, "max": 15 },
+      "forearm_circumference_cm": { "min": 19, "max": 23 },
+      "upper_arm_circumference_cm": { "min": 22, "max": 30 }
+    }
+  },
+  {
+    "size": "M",
+    "measurements": {
+      "hand_circumference_cm": { "min": 17, "max": 21 },
+      "wrist_circumference_cm": { "min": 16, "max": 18 },
+      "forearm_circumference_cm": { "min": 23, "max": 27 },
+      "upper_arm_circumference_cm": { "min": 30, "max": 37 }
+    }
+  },
+  {
+    "size": "L",
+    "measurements": {
+      "hand_circumference_cm": { "min": 18, "max": 22 },
+      "wrist_circumference_cm": { "min": 19, "max": 21 },
+      "forearm_circumference_cm": { "min": 26, "max": 30 },
+      "upper_arm_circumference_cm": { "min": 36, "max": 43 }
+    }
+  },
+  {
+    "size": "XL",
+    "measurements": {
+      "hand_circumference_cm": { "min": 19, "max": 23 },
+      "wrist_circumference_cm": { "min": 22, "max": 24 },
+      "forearm_circumference_cm": { "min": 30, "max": 34 },
+      "upper_arm_circumference_cm": { "min": 42, "max": 49 }
+    }
+  }
+]
